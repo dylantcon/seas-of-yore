@@ -2,7 +2,7 @@
 A medieval 'Battleship' inspired board game, with new features and game modes.
 
 
-## Overview
+## Overview (May Describe Some Stretch Goals for v1.0)
 Seas of Yore is a Java-based battleship-inspired game, which honors the original rules of Battleship, while also building on the original features of the game. This project is complete with medieval style sprites, UI, a thematic soundtrack, and interactive sound effects as the game is played. It can be played singleplayer against 3 different AI difficulties, or as a multiplayer game, with a human player versus a human player. There also will be save-game functionality, so if you want to come back to a game later, you absolutely can. This game is built entirely in Java, and relies only on core JDK features and a few image sprites and sound files. These are all packed into the `SeasOfYore.jar` file that is enclosed in this repository. So, my hope is that if you have the JRE installed, you should be able to just double-click `SeasOfYore.jar` and it will boot up.
 
 ## Features
