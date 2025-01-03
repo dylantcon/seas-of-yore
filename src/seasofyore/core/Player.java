@@ -173,6 +173,25 @@ public class Player
     return true;
   }
   
+      /**
+     * Fires at a specific cell, marking it for a hit or miss, and returns a
+     * boolean value representing successfully or unsuccessfully hitting a ship.
+     * 
+     * @param x the x-coordinate of the cell
+     * @param y the y-coordinate of the cell
+     * @return true if the cell was successfully fired at AND the cell contained
+     * an undamaged ship deck; false otherwise
+     */
+    public boolean tryEnemyShipDamage( int x, int y )
+    {
+      // short circuit eval is key here, check to see if cell at specified
+      //  quadrant location contained a ship BEFORE changing the state of
+      //  the cell. this is quite useful for AI players and populating the
+      //  heatmap with state metadata. 
+      return getEnemyQuad().cellIsShip( x, y ) 
+          && getEnemyQuad().fireAtCell( x, y );
+    }
+  
  /**
  * Synchronizes the state of the player's ships with their quadrant.
  */

@@ -28,7 +28,7 @@ public class FallingStoneAnimation
     private static final Color STONECOLOR = new Color( 132, 123, 109 );
     private int stoneY; // current Y position of the stone
     private static final int STONE_SIZE = 30; // size of the stone
-    private static final int ANIMATION_SPEED = 5; // speed in pixels per frame
+    private static final int ANIMATION_SPEED = 10; // speed in pixels per frame
     private Timer animationTimer;
 
     public FallingStoneAnimation( Point targetCell, JPanel renderPanel ) 
@@ -42,7 +42,7 @@ public class FallingStoneAnimation
     // for use on event dispatch thread ONLY !
     public void startAnimation( Runnable onAnimationComplete ) 
     {
-      animationTimer = new Timer( 15, ( ActionEvent e ) -> 
+      animationTimer = new Timer( 6, ( ActionEvent e ) -> 
       {
         stoneY += ANIMATION_SPEED; // move stone downward
         // check if the stone has reached the target cell
