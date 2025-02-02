@@ -1,5 +1,5 @@
 # seas-of-yore
-A medieval 'Battleship' inspired board game, with new features and game modes.
+A medieval 'Battleship' inspired board game, with new features and game modes. Custom-drawn sprites and an engaging user interface enhance the core gameplay features.
 
 
 ## Overview (May Describe Some Stretch Goals for v1.0)
