@@ -2,6 +2,11 @@
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
  * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Main.java to edit this template
  */
+
+/**
+ * The main game package, which contains all files associated with controlling 
+ * the game state.
+ */
 package seasofyore;
 
 import java.awt.BorderLayout;
@@ -17,6 +22,8 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
+
+import java.awt.BorderLayout;
 
 /**
  * Main entry point of the program. Medieval Battleship, using Swing Components.
@@ -81,7 +88,7 @@ public class SeasOfYore
     JPanel titlePanel = new JPanel() 
     {
       @Override
-      protected void paintComponent(Graphics g) 
+      protected void paintComponent( Graphics g ) 
       {
         super.paintComponent(g);
         if ( ART != null )
@@ -120,4 +127,77 @@ public class SeasOfYore
     return titlePanel;
   }
 }
+
+//
+//import java.awt.BorderLayout;
+//import java.awt.CardLayout;
+//import java.awt.Color;
+//import java.awt.FlowLayout;
+//import java.awt.Font;
+//import java.awt.Graphics;
+//import javax.swing.ImageIcon;
+//import javax.swing.JButton;
+//import javax.swing.JFrame;
+//import javax.swing.JLabel;
+//import javax.swing.JPanel;
+//import javax.swing.SwingConstants;
+//import javax.swing.SwingUtilities;
+//
+///**
+// * Main entry point of the program. Medieval Battleship, using Swing Components.
+// * 
+// * @author dylan
+// */
+//public class SeasOfYore 
+//{ 
+//  private static final String PTH = "/images/TITLE.png";
+//  private final ImageIcon ART;
+//  
+//  private JPanel titlePanel;
+//  private JPanel gamePanel;
+//  private JPanel seasOfYore;
+//  
+//  private int userView;
+//  private static final int TITLE_SCREEN = 0;
+//  private static final int CLASSIC_SCREEN = 1;
+//  private static final int SALVO_SCREEN = 2;
+//  
+//  private final JFrame frame;
+//  
+//  private SeasOfYore()
+//  {
+//    seasOfYore = new JPanel();
+//    frame = new JFrame( "Seas of Yore" );
+//    
+//    frame.setDefaultCloseOperation( JFrame.EXIT_ON_CLOSE );
+//    frame.setSize( 800, 800 );
+//    
+//    ART = new ImageIcon( getClass().getResource( PTH ) );
+//    
+//  }
+//  
+//  private void configureFrame()
+//  {
+//    seasOfYore 
+//    
+//  }
+//  
+//  private void run()
+//  {
+//    frame.setVisible( true );
+//  }
+//  
+//  public static void main( String[] args ) 
+//  { 
+//    // Initialize main application frame
+//    SwingUtilities.invokeLater( () -> 
+//    {
+//      SeasOfYore SoY = new SeasOfYore();
+//      SoY.run();
+//    });
+//  }
+//}
+//
+
+
 

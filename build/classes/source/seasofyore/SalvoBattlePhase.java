@@ -1,9 +1,7 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package seasofyore;
 
+import seasofyore.ui.QuadrantPanel;
+import seasofyore.ui.FallingStoneAnimation;
 import java.awt.Graphics;
 import java.awt.Point;
 import java.util.LinkedList;
@@ -119,14 +117,6 @@ public class SalvoBattlePhase extends BattlePhase
         faller = null; // nullify falling animation instance
        
         controller.getDragLayerPanel().repaint();
-
-        if ( controller.getNextPlayer().hasLost() )
-        {
-          controller.logToTerminal( VICTORY );
-          String winner = controller.getCurrentPlayerCivilization().toString();
-          controller.showWinScreen( winner );
-          return;
-        }
         
         playNextAnimation();
         controller.getDragLayerPanel().repaint();
@@ -136,6 +126,14 @@ public class SalvoBattlePhase extends BattlePhase
     {
       controller.getNextQuadrantPanel().disableCellInteraction();
       controller.logToTerminal( "SALVO turn complete!" );
+      
+      if ( controller.getNextPlayer().hasLost() )
+      {
+        controller.logToTerminal( VICTORY );
+        String winner = controller.getCurrentPlayerCivilization().toString();
+        controller.showWinScreen( winner );
+        return;
+      }  
       controller.logToTerminal( NTPROMPT );
       controller.getTerminalPanel().setTurnButtonEnabled( true );
     }

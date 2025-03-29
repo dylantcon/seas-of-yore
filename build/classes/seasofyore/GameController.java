@@ -1,5 +1,11 @@
 package seasofyore;
 
+import seasofyore.ui.SidebarPanel;
+import seasofyore.ui.BoardPanel;
+import seasofyore.ui.QuadrantPanel;
+import seasofyore.ui.TerminalPanel;
+import seasofyore.ui.WinScreenPanel;
+import seasofyore.ui.CustomButton;
 import seasofyore.core.Player;
 import seasofyore.core.Civilization;
 import seasofyore.core.PlayerQuadrant;
@@ -8,17 +14,22 @@ import seasofyore.core.Board;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Graphics;
+import java.awt.GridLayout;
 import java.awt.Point;
 import javax.swing.JLayeredPane;
 import javax.swing.JPanel;
 import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
-import javax.swing.JLabel;
+import javax.swing.JComponent;
 import javax.swing.Timer;
 
 /**
@@ -75,6 +86,11 @@ public class GameController extends JLayeredPane implements QuadrantListener
    * The curtain panel for turn transitions.
    */
   private JPanel curtainPanel;
+  
+  /**
+   * The editor panel visible for human players during the ShipPlacementPhase
+   */
+  private JPanel toolbarPanel;
 
   /**
    * The terminal panel for displaying game messages and housing the
@@ -91,7 +107,7 @@ public class GameController extends JLayeredPane implements QuadrantListener
    * The panel displaying the ship selection sidebar.
    */  
   private SidebarPanel sidebarPanel;
-
+  
   /**
    * The player whose turn it currently is.
    */
@@ -101,7 +117,22 @@ public class GameController extends JLayeredPane implements QuadrantListener
    * Timer controlling the curtain animations for turn transitions.
    */  
   private Timer curtainTimer;
-
+  
+  /**
+   * Path to the random placement button image
+   */
+  private static final String RANDOM = "/images/random.png";
+  
+  /**
+   * Path to the reset placement button image (trash icon)
+   */
+  private static final String GARBAGE = "/images/garbage.png";
+  
+  /**
+   * Represents the fixed size of the toolbar buttons
+   */
+  private static final int TB_BUTTON_DIM = 75;
+  
   /**
    * Indicates if the curtain is fully closed.
    */
@@ -121,8 +152,7 @@ public class GameController extends JLayeredPane implements QuadrantListener
    * The speed of the curtain movement in pixels per frame.
    */
   private final int curtainSpeed = 10; // speed of curtain movement
-  
-  
+
   /**
    * Constructs a new GameController and starts the game.
    *
@@ -303,6 +333,7 @@ public class GameController extends JLayeredPane implements QuadrantListener
     
     setLayout( null );  // null layout for foreground
     addGameplayElements();
+    initializeToolbar();
     
     add( gamePanel, JLayeredPane.DEFAULT_LAYER );
     add( sidebarPanel, JLayeredPane.PALETTE_LAYER );
@@ -353,9 +384,8 @@ public class GameController extends JLayeredPane implements QuadrantListener
   public void setPhase( GamePhase phase )
   {
     if ( currentPhase != null )
-    {
       currentPhase.cleanup();
-    }
+    
     this.currentPhase = phase;
     currentPhase.enterPhase( this );
     repaint();
@@ -488,6 +518,8 @@ public class GameController extends JLayeredPane implements QuadrantListener
       @Override
       public void mouseMoved( MouseEvent e )
       {
+        // forwards mouse movement events to AbstractGamePhase subclasses,
+        //  primarily for updating the draggable ship silhouette
         if ( currentPhase != null )
           currentPhase.handleInput( e );
       }
@@ -501,9 +533,15 @@ public class GameController extends JLayeredPane implements QuadrantListener
           currentPhase.handleInput( e );
       }
     };
-    gamePanel.addMouseListener( sharedMouseAdapter );
-    gamePanel.addMouseMotionListener( sharedMouseAdapter );
-    gamePanel.addMouseWheelListener( sharedMouseAdapter );
+    configureMouseObservation( gamePanel, sharedMouseAdapter );
+    configureMouseObservation( sidebarPanel, sharedMouseAdapter );
+  }
+  
+  private void configureMouseObservation( JComponent comp, MouseAdapter adpt )
+  {
+    comp.addMouseListener( adpt );
+    comp.addMouseMotionListener( adpt );
+    comp.addMouseWheelListener( adpt );
   }
   
   /**
@@ -537,17 +575,15 @@ public class GameController extends JLayeredPane implements QuadrantListener
   {
     winScreen = new WinScreenPanel
     ( 
-      winner,
-      e -> 
-      {
-        // play again actionPerformed listener via lambda
+      winner, ( ActionEvent e ) -> {
+        // play again actionPerformed listener
         remove( winScreen );
-        revalidate();
-        repaint();
-        startGame();
-      },
+        this.startGame();
+        returnToTitle.run();
+        
+    },
       // exit actionPerformed listener via lambda
-      e -> System.exit( 0 )
+      ( ActionEvent e ) -> System.exit( 0 )
     );
 
     // add the win screen to the modal layer
@@ -623,9 +659,53 @@ public class GameController extends JLayeredPane implements QuadrantListener
     gamePanel.add( terminal, BorderLayout.SOUTH );
   }
   
+  private void initializeToolbar()
+  {
+    toolbarPanel = new JPanel( new GridLayout( 4, 1 ) );
+    toolbarPanel.setOpaque( false );
+    
+    toolbarPanel.add( Box.createVerticalGlue() );
+    ImageIcon i = new ImageIcon( getClass().getResource( RANDOM ) );
+    CustomButton randomizeButton = new CustomButton( i );
+    randomizeButton.addActionListener( ( ActionEvent e ) -> 
+    {
+      current.randomVesselPlacement();
+      sidebarPanel.allSlotsEnabled( false );
+      terminal.setTurnButtonEnabled( true );
+      repaint();
+    });
+    toolbarPanel.add( randomizeButton );
+    i = new ImageIcon( getClass().getResource( GARBAGE ) );
+    CustomButton garbageButton = new CustomButton( i );
+    garbageButton.addActionListener( ( ActionEvent e ) -> 
+    {
+      current.reset();
+      currentPhase.cleanup();
+      sidebarPanel.resetAllSlots();
+      boardPanel.getFriendlyPanel().enableCellInteraction();
+      repaint();
+    });
+    toolbarPanel.add( garbageButton );
+    toolbarPanel.add( Box.createVerticalGlue() );
+  }
+  
+  public void addToolbar()
+  {
+    add( toolbarPanel, JLayeredPane.PALETTE_LAYER );
+    updateComponentBounds();
+    repaint();
+  }
+  
+  public void removeToolbar()
+  {
+    remove( toolbarPanel );
+    updateComponentBounds();
+    repaint();
+  }
+  
   /**
   * Creates the curtain panel used for turn transitions.
-  * Includes a revealer button to manually open the curtain.
+  * Includes a revealing button to manually open the curtain.
   *
   * @return the curtain panel
   */
@@ -687,7 +767,7 @@ public class GameController extends JLayeredPane implements QuadrantListener
   private int getCurtainTime()
   {
     int animationFrames = getHeight() / curtainSpeed; // total frames needed
-    int msDelayFrame = 15; // time delay between frames (milliseconds)
+    int msDelayFrame = 20; // time delay between frames (milliseconds)
 
     return animationFrames * msDelayFrame; // total animation time in milliseconds
   }
@@ -712,6 +792,12 @@ public class GameController extends JLayeredPane implements QuadrantListener
     
     if ( dragLayerPanel != null )
       dragLayerPanel.setBounds( gamePanel.getBounds() );
+    
+    if ( isSetupPhase() && toolbarPanel != null )
+    {
+      toolbarPanel.setBounds( 0, ( height / 2 ) - TB_BUTTON_DIM, 
+        TB_BUTTON_DIM, ( height / 2 ) + TB_BUTTON_DIM );
+    }
     
     if ( terminal != null )
       terminal.setBounds( 0, boardPanel.getY(), width, height );

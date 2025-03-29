@@ -4,6 +4,7 @@
  */
 package seasofyore;
 
+import seasofyore.ui.QuadrantPanel;
 import java.awt.Graphics;
 import java.awt.Point;
 import java.awt.event.MouseEvent;

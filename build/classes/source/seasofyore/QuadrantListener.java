@@ -4,6 +4,7 @@
  */
 package seasofyore;
 
+import seasofyore.ui.QuadrantPanel;
 import java.awt.Point;
 
 /**

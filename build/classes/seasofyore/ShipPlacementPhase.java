@@ -1,5 +1,8 @@
 package seasofyore;
 
+import seasofyore.ui.SidebarPanel;
+import seasofyore.ui.QuadrantPanel;
+import seasofyore.ui.DraggableShip;
 import seasofyore.core.Direction;
 import seasofyore.core.Civilization;
 import seasofyore.core.ShipType;
@@ -23,7 +26,7 @@ import javax.swing.SwingUtilities;
 public class ShipPlacementPhase extends AbstractGamePhase
 {
   /**
-   * The currently held draggable ship for placement.
+   * The currently held drag-able ship for placement.
    */
   private DraggableShip draggableShip;
   
@@ -66,6 +69,7 @@ public class ShipPlacementPhase extends AbstractGamePhase
     draggableShip = null;
     menu = controller.getSidebarPanel();
     controller.applyNewSidebar();
+    controller.addToolbar();
     
     controller.getBoardPanel().getFriendlyPanel().enableCellInteraction();
     controller.getBoardPanel().getEnemyPanel().disableCellInteraction();
@@ -98,27 +102,19 @@ public class ShipPlacementPhase extends AbstractGamePhase
       return;
     }
     
-    
     if ( !controller.getBoard().hasCurrentFinishedSetup() )
     {
       Direction direction = draggableShip.getDirection();
-      ShipType heldShip = menu.getSelectedShip();
+      ShipType held = menu.getSelectedShip();
 
-      if ( !quadrantPanel.placeShip( heldShip, x, y, direction ) )
-        controller.logToTerminal( "Can't place " + heldShip + ", try elsewhere." );
+      if ( !quadrantPanel.placeShip( held, x, y, direction ) )
+        controller.logToTerminal( "Can't place " + held + ", try elsewhere." );
+      
       else
       {
-        controller.logToTerminal( heldShip + " placed successfully!" );
-        menu.setSlotEnabled( heldShip, false );
-        menu.nullSelectedShip();
-        draggableShip = null;
-        controller.repaint();
-        if ( controller.getBoard().hasCurrentFinishedSetup() )
-        {
-          controller.logToTerminal( doneIns );
-          controller.logToTerminal( BattlePhase.NTPROMPT );
-          controller.getTerminalPanel().setTurnButtonEnabled( true );
-        }
+        controller.logToTerminal( held + " placed successfully!" );
+        menu.setSlotEnabled( held, false );
+        observePlacementState();
       }
     }
   }
@@ -168,19 +164,16 @@ public class ShipPlacementPhase extends AbstractGamePhase
     if ( e.getID() == MouseEvent.MOUSE_WHEEL && draggableShip != null ) 
     {
       int rotation = ( (MouseWheelEvent) e ).getWheelRotation();
-      
       if ( rotation < 0 ) 
         draggableShip.rotateCounterClockwise();
-
       else if ( rotation > 0 ) 
         draggableShip.rotateClockwise();
-
       controller.getDragLayerPanel().repaint();
     }
 
     if ( e.getID() == MouseEvent.MOUSE_CLICKED ) 
-    {
-      // Handle picking up a ship from the sidebar
+    { 
+      // Handle picking up a ship from the sidebar ( source sidebarPanel )
       Point menuPt = getSlotContainedPoint( e.getPoint() );
       ShipType clkShip = menu.getShipAtPoint( menuPt );
       
@@ -189,6 +182,8 @@ public class ShipPlacementPhase extends AbstractGamePhase
         draggableShip = instantiateDraggableShip( clkShip );
         menu.setSelectedShip( clkShip );
         controller.logToTerminal( "You've selected the " + clkShip );
+        // TODO: update position upon instantiating preview ship ( currently
+        //          looks shitty and appears at 0,0 within gamePanel )
       }
       else if ( clkShip == null )
         controller.logToTerminal( noShipIns );
@@ -226,10 +221,13 @@ public class ShipPlacementPhase extends AbstractGamePhase
   @Override
   public void cleanup()
   {
+    draggableShip = null;
     menu.nullSelectedShip();
     controller.getBoardPanel().getFriendlyPanel().disableCellInteraction();
-    controller.getBoardPanel().getEnemyPanel().disableCellInteraction();
     controller.getTerminalPanel().setTurnButtonEnabled( false );
+    
+    if ( controller.getCurrentPlayer().hasPlacedAllShips() )
+      controller.removeToolbar();
     
     if ( controller.getBoard().isPlacementFinal() )
       menu.allSlotsEnabled( false );
@@ -243,7 +241,8 @@ public class ShipPlacementPhase extends AbstractGamePhase
    */
   private Point getSlotContainedPoint( Point p )
   {
-    return SwingUtilities.convertPoint( getPanel(), p, menu.getSlotContainer() );
+    return SwingUtilities.convertPoint( getSidebarPanel(), p,
+                                        menu.getSlotContainer() );
   }
 
   /**
@@ -251,9 +250,9 @@ public class ShipPlacementPhase extends AbstractGamePhase
    *
    * @return the main game panel
    */
-  private JPanel getPanel()
+  private SidebarPanel getSidebarPanel()
   {
-    return controller.getGamePanel();
+    return controller.getSidebarPanel();
   }
 
   /**
@@ -267,5 +266,27 @@ public class ShipPlacementPhase extends AbstractGamePhase
   {
     return new DraggableShip( controller.getCurrentQuadrantPanel(), type, 
                               Direction.EAST );
+  }
+  
+  /**
+   * Handles all ships placed, nullifies any prior state for the current ship. 
+   * 
+   * If the current player has placed all of their ships, the slots in the 
+   * sidebar are disabled, a prompt is sent to the terminal, and the end turn
+   * button is enabled to allow interaction.
+   */
+  private void observePlacementState()
+  {
+    menu.nullSelectedShip();
+    draggableShip = null;
+    
+    if ( controller.getBoard().hasCurrentFinishedSetup() )
+    {
+      menu.allSlotsEnabled( false );
+      controller.logToTerminal( doneIns );
+      controller.logToTerminal( BattlePhase.NTPROMPT );
+      controller.getTerminalPanel().setTurnButtonEnabled( true );
+    }
+    controller.repaint();
   }
 }

@@ -99,7 +99,7 @@ public class PlayerQuadrant
      */
     public boolean placeShip( Ship ship, ShipHeading heading ) 
     {
-        if (!validHeading(ship, heading))
+        if ( !validHeading( ship, heading ) )
         {
             return false;
         }
@@ -135,11 +135,11 @@ public class PlayerQuadrant
      * @param cells the list of cells to check
      * @return true if all cells are empty; false otherwise
      */
-    private boolean isRangeEmpty(List<int[]> cells) 
+    private boolean isRangeEmpty( List<int[]> cells ) 
     {
         for (int[] cell : cells)
         {
-            if (getQuadrantAt(cell[X], cell[Y]) != WATER_CELL)
+            if ( getQuadrantAt( cell[X], cell[Y] ) != WATER_CELL )
             {
                 return false;
             }
@@ -156,7 +156,7 @@ public class PlayerQuadrant
      */
     public static boolean cellInBounds(int x, int y) 
     {
-        return !(x >= GRID_SIZE || y >= GRID_SIZE || x < 0 || y < 0);
+        return !( x >= GRID_SIZE || y >= GRID_SIZE || x < 0 || y < 0 );
     }
 
     /**
@@ -168,7 +168,7 @@ public class PlayerQuadrant
      */
     public boolean cellIsShip(int x, int y) 
     {
-        return (cellInBounds(x, y) && getQuadrantAt(x, y) == SHIP_CELL);
+        return ( cellInBounds(x, y) && getQuadrantAt(x, y) == SHIP_CELL );
     }
 
     /**

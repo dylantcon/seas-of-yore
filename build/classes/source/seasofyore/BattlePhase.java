@@ -4,6 +4,8 @@
  */
 package seasofyore;
 
+import seasofyore.ui.QuadrantPanel;
+import seasofyore.ui.FallingStoneAnimation;
 import seasofyore.core.Ship;
 import java.awt.Graphics;
 import java.awt.Point;
