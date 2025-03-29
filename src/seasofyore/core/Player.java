@@ -10,7 +10,7 @@ import java.util.List;
  * @author dylan
  * 
  */
-public class Player 
+public abstract class Player 
 {
   /**
    * The fixed size of the player's fleet.
@@ -20,32 +20,32 @@ public class Player
   /**
    * The player's fleet of ships.
    */
-  private Ship[] fleet;
+  protected Ship[] fleet;
 
   /**
    * The locations of the player's ships.
    */
-  private ShipHeading[] locations;
+  protected ShipHeading[] locations;
 
   /**
    * The number of ships placed on the player's board.
    */
-  private int placedShips = 0;
+  protected int placedShips = 0;
 
   /**
    * The civilization the player represents.
    */
-  private final Civilization civ;
+  protected final Civilization civ;
 
   /**
    * The player's quadrant representing friendly territory.
    */
-  private final PlayerQuadrant friendlyQuad;
+  protected final PlayerQuadrant friendlyQuad;
 
   /**
    * The player's quadrant representing enemy territory.
    */
-  private final PlayerQuadrant enemyQuad;
+  protected final PlayerQuadrant enemyQuad;
 
   /**
    * Constructs a new Player with the specified civilization and quadrants.
@@ -65,6 +65,7 @@ public class Player
   
   /**
    * Gets the player's friendly quadrant.
+   * Doesn't need override by subclasses
    * 
    * @return the friendly quadrant
    */
@@ -75,6 +76,7 @@ public class Player
   
   /**
    * Gets the player's enemy quadrant.
+   * Doesn't need override by subclasses
    * 
    * @return the enemy quadrant
    */
@@ -133,29 +135,14 @@ public class Player
   }
   
   /**
-   * Randomizes the calling object's (Player) ship placement, placing all ships.
-   */
-  public void randomVesselPlacement()
-  {
-    Ship[] ships = Ship.getListInstance();      // get a ship array for fleet
-    reset();
-    friendlyQuad.eraseCells();
-    
-    // while we haven't placed all our ships, attempt placing current ship with
-    //  a randomly generated ship heading. stop when all ships have been placed
-    while ( placedShips != 5 )
-      placeVessel( ships[placedShips], ShipHeading.getRandomInstance() );
-  }
-  
-  /**
-   * Resets all placement related variables to their uninitialized state.
+   * Resets all placement-related variables to their uninitialized state.
    */
   public void reset()
   {
-    fleet = new Ship[ FLEET_SIZE ];             // re-initialize fleet
-    locations = new ShipHeading[ FLEET_SIZE ];  // re-initialize locations
-    placedShips = 0;                            // set placedShips to 0
-    friendlyQuad.eraseCells();                  // reset friendly quadrant
+    fleet = new Ship[FLEET_SIZE];             // re-initialize fleet
+    locations = new ShipHeading[FLEET_SIZE];  // re-initialize locations
+    placedShips = 0;                          // set placedShips to 0
+    friendlyQuad.eraseCells();                // reset friendly quadrant cells
   }
   
   /**
@@ -299,4 +286,46 @@ public class Player
     }
     return null;
   }
+  
+  /**
+   * Determines if this player requires manual input for decisions.
+   * 
+   * @return true if the player makes autonomous decisions (AI); false otherwise (human)
+   */
+  public abstract boolean isAutonomous();
+  
+  /**
+   * Randomizes the calling object's (Player) ship placement, placing all ships.
+   */
+  public void randomVesselPlacement()
+  {
+    Ship[] ships = Ship.getListInstance();      // get a ship array for fleet
+    reset();
+    friendlyQuad.eraseCells();
+    
+    // while we haven't placed all our ships, attempt placing current ship with
+    //  a randomly generated ship heading. stop when all ships have been placed
+    while ( placedShips != 5 )
+      placeVessel( ships[placedShips], ShipHeading.getRandomInstance() );
+  }
+  
+ /**
+  * Calculates the next move to make during the battle phase.
+  * For human players, this is handled by UI interaction.
+  * For AI players, this implements the targeting strategy.
+  * 
+  * @return coordinates of the target as [x, y], or null if no valid target exists
+  */
+  public abstract int[] calculateNextAttack();
+  
+  /**
+   * Processes the result of an attack. 
+   * Allows AI players to update their targeting strategy based on hit/miss results.
+   * 
+   * @param x the x-coordinate of the attack
+   * @param y the y-coordinate of the attack
+   * @param hit true if the attack hit a ship; false otherwise
+   */
+  public abstract void processAttackResult( int x, int y, boolean hit );
 }
+

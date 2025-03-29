@@ -33,7 +33,6 @@ public class Board
    */
   private boolean setupPhase;
   
-  
   /**
    * The quadrant representing the Britons' territory.
    */  
@@ -56,8 +55,8 @@ public class Board
     bQuad = new PlayerQuadrant();
     fQuad = new PlayerQuadrant();
     
-    britons = new Player( Civilization.BRITONS, bQuad, fQuad );
-    franks = new Player( Civilization.FRANKS, fQuad, bQuad );
+    britons = new HumanPlayer( Civilization.BRITONS, bQuad, fQuad );
+    franks = new HumanPlayer( Civilization.FRANKS, fQuad, bQuad );
     
     currentPlayer = britons;
     setupPhase = true;
