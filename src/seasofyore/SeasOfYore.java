@@ -1,14 +1,15 @@
 package seasofyore;
 
-import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
@@ -19,15 +20,13 @@ import javax.swing.JLayeredPane;
 import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
-import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
-import javax.swing.border.EmptyBorder;
 import seasofyore.core.PlayerType;
 import seasofyore.ui.ChoppySeasPanel;
 
 /**
  * Main entry point of the program. Medieval Battleship, using Swing Components.
- * 
+ *
  * @author dylan
  */
 public class SeasOfYore
@@ -36,43 +35,56 @@ public class SeasOfYore
     private JFrame mainFrame;
     private CardLayout cardLayout;
     private JPanel mainPanel;
-    
-    // Navigation panels
+
+    // Navigation panels. The battle-setup screen can express every local
+    // matchup (hot-seat, solo vs any AI tier, AI-vs-AI spectating, Classic or
+    // SALVO), so it IS the mode selection; the old per-mode screens are gone.
     private JPanel titlePanel;
-    private JPanel modeSelectionPanel;
-    private JPanel aiDifficultyPanel;
-    private JPanel customBattlePanel;
+    private JPanel battleSetupPanel;
 
     // menu spacing insets, mirroring the javarominoes menu layout: a packed
     // GridBagLayout column where the gaps come from insets, not struts
+    private static final Insets HEADER_P = new Insets(20, 0, 20, 0);
     private static final Insets STD_P = new Insets(10, 20, 10, 20);
     private static final Insets BACK_P = new Insets(30, 20, 10, 20);
 
-    // Custom-battle controls (read when the battle is launched)
+    // the menus' medieval palette
+    private static final Color INK = new Color(18, 10, 28);          // near-black plum
+    private static final Color GOLD = new Color(232, 201, 124);      // illuminated gold
+    private static final Color PARCHMENT = new Color(229, 213, 175); // aged paper
+    private static final Color SEA_BLUE = new Color(24, 58, 94);     // deep water
+    private static final Color BLOOD_RED = new Color(122, 24, 24);   // war banner
+
+    // fixed button footprint, as in the javarominoes menus: uniform buttons
+    // read as one deliberate column instead of a ragged stack
+    private static final int BUTTON_W = 280;
+    private static final int BUTTON_H = 60;
+
+    // Battle-setup controls (read when the battle is launched)
     private JComboBox<PlayerType> britonsSelector;
     private JComboBox<PlayerType> franksSelector;
     private JRadioButton classicModeButton;
     private JRadioButton salvoModeButton;
-    
+
     // Factory for creating game controllers
     private final GameControllerFactory controllerFactory;
-    
+
     private SeasOfYore()
     {
         controllerFactory = new GameControllerFactory();
         initializeUI();
     }
-    
+
     /**
      * Initializes the main UI components and navigation screens.
      */
-    private void initializeUI() 
+    private void initializeUI()
     {
         // Create main application frame
         mainFrame = new JFrame("Seas of Yore");
         mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         mainFrame.setSize(800, 800);
-        
+
         // Set up card layout for screen management. The card stack is fully
         // transparent so the animated seas behind it show through every screen.
         cardLayout = new CardLayout();
@@ -81,16 +93,12 @@ public class SeasOfYore
 
         // Create navigation screens
         titlePanel = createTitlePanel();
-        modeSelectionPanel = createModeSelectionPanel();
-        aiDifficultyPanel = createAIDifficultyPanel();
-        customBattlePanel = createCustomBattlePanel();
+        battleSetupPanel = createBattleSetupPanel();
 
         // Add screens to main panel
         mainPanel.add(titlePanel, "TitleScreen");
-        mainPanel.add(modeSelectionPanel, "ModeSelection");
-        mainPanel.add(aiDifficultyPanel, "AIDifficulty");
-        mainPanel.add(customBattlePanel, "CustomBattle");
-        
+        mainPanel.add(battleSetupPanel, "BattleSetup");
+
         // Compose the whole menu system as a transparent stack floating over one
         // shared, self-animating "choppy seas" background -- the same idea as the
         // javarominoes parallax menus. A JLayeredPane lets us pin the animated
@@ -113,186 +121,73 @@ public class SeasOfYore
 
         mainFrame.setContentPane(layeredRoot);
     }
-    
+
     /**
      * Shows the application window.
      */
-    private void show() 
+    private void show()
     {
         cardLayout.show(mainPanel, "TitleScreen");
         mainFrame.setVisible(true);
     }
-    
+
     /**
-     * Creates the title screen panel with game logo and main menu options.
-     * 
+     * Creates the title screen panel with the game wordmark and main menu
+     * options.
+     *
      * @return the title screen panel
      */
-    private JPanel createTitlePanel() 
+    private JPanel createTitlePanel()
     {
-        JPanel panel = createBackgroundPanel();
-        panel.setLayout(new BorderLayout());
-        
-        // Title label
-        JLabel titleLabel = new JLabel("Seas of Yore", SwingConstants.CENTER);
-        titleLabel.setFont(new Font("Serif", Font.BOLD + Font.ITALIC, 60));
-        titleLabel.setForeground(Color.MAGENTA);
-        
-        // Button panel
-        JPanel buttonPanel = new JPanel(new GridBagLayout());
-        buttonPanel.setOpaque(false);
-        buttonPanel.setBorder(new EmptyBorder(0, 0, 50, 0)); // Add some bottom padding
+        JPanel panel = createMenuColumnPanel();
 
-        // Create buttons
-        JButton playButton = createMenuButton("Play Game");
-        JButton quitButton = createMenuButton("Quit");
+        JLabel titleLabel = makeChipLabel("Seas of Yore",
+            new Font("Serif", Font.BOLD | Font.ITALIC, 60), GOLD, INK);
+        JLabel subtitleLabel = makeChipLabel("~ Developed by Dylan Connolly ~",
+            new Font("Serif", Font.ITALIC, 18), INK, PARCHMENT);
+
+        // Create buttons. Battle setup covers every playable matchup, so the
+        // title goes straight there; networked play keeps a (disabled) seat
+        // at the table until it exists.
+        JButton playButton = createMenuButton("Set Sail", Color.WHITE, SEA_BLUE);
+        JButton multiplayerButton = createMenuButton("Multiplayer (Coming Soon)",
+                                                     INK, PARCHMENT);
+        JButton quitButton = createMenuButton("Quit to Desktop", PARCHMENT, BLOOD_RED);
+
+        multiplayerButton.setEnabled(false);
 
         // Add action listeners
-        playButton.addActionListener(e -> cardLayout.show(mainPanel, "ModeSelection"));
+        playButton.addActionListener(e -> cardLayout.show(mainPanel, "BattleSetup"));
         quitButton.addActionListener(e -> System.exit(0));
 
-        // Add buttons as a packed, centered column
-        gblAdd(buttonPanel, playButton, 0, STD_P);
-        gblAdd(buttonPanel, quitButton, 1, STD_P);
-        
-        // Add components to main panel
-        panel.add(titleLabel, BorderLayout.NORTH);
-        panel.add(buttonPanel, BorderLayout.CENTER);
-        
+        // Stack everything as one packed, centered column
+        gblAdd(panel, titleLabel, 0, HEADER_P);
+        gblAdd(panel, subtitleLabel, 1, HEADER_P);
+        gblAdd(panel, new JLabel(), 2, STD_P); // breathing room before the buttons
+        gblAdd(panel, playButton, 3, STD_P);
+        gblAdd(panel, multiplayerButton, 4, STD_P);
+        gblAdd(panel, quitButton, 5, STD_P);
+
         return panel;
     }
-    
+
     /**
-     * Creates the game mode selection panel.
-     * 
-     * @return the mode selection panel
-     */
-    private JPanel createModeSelectionPanel() 
-    {
-        JPanel panel = createBackgroundPanel();
-        panel.setLayout(new BorderLayout());
-        
-        // Header label
-        JLabel headerLabel = new JLabel("Select Game Mode", SwingConstants.CENTER);
-        headerLabel.setFont(new Font("Serif", Font.BOLD, 40));
-        headerLabel.setForeground(Color.WHITE);
-        
-        // Button panel
-        JPanel buttonPanel = new JPanel(new GridBagLayout());
-        buttonPanel.setOpaque(false);
-        buttonPanel.setBorder(new EmptyBorder(30, 0, 50, 0));
-
-        // Create buttons
-        JButton singlePlayerButton = createMenuButton("Single Player (vs AI)");
-        JButton classicButton = createMenuButton("Classic Game");
-        JButton salvoButton = createMenuButton("SALVO Game");
-        JButton customButton = createMenuButton("Custom Battle");
-        JButton lanButton = createMenuButton("LAN Multiplayer");
-        JButton onlineButton = createMenuButton("Online Multiplayer");
-        JButton backButton = createMenuButton("Back");
-
-        // Set disabled state for unimplemented features
-        lanButton.setEnabled(false);
-        onlineButton.setEnabled(false);
-
-        // Add action listeners
-        singlePlayerButton.addActionListener(e -> cardLayout.show(mainPanel, "AIDifficulty"));
-        classicButton.addActionListener(e -> launchGameMode(GameMode.CLASSIC));
-        salvoButton.addActionListener(e -> launchGameMode(GameMode.SALVO));
-        customButton.addActionListener(e -> cardLayout.show(mainPanel, "CustomBattle"));
-        backButton.addActionListener(e -> cardLayout.show(mainPanel, "TitleScreen"));
-
-        // Add buttons as a packed, centered column
-        gblAdd(buttonPanel, singlePlayerButton, 0, STD_P);
-        gblAdd(buttonPanel, classicButton, 1, STD_P);
-        gblAdd(buttonPanel, salvoButton, 2, STD_P);
-        gblAdd(buttonPanel, customButton, 3, STD_P);
-        gblAdd(buttonPanel, lanButton, 4, STD_P);
-        gblAdd(buttonPanel, onlineButton, 5, STD_P);
-        gblAdd(buttonPanel, backButton, 6, BACK_P);
-        
-        // Add components to main panel
-        panel.add(headerLabel, BorderLayout.NORTH);
-        panel.add(buttonPanel, BorderLayout.CENTER);
-        
-        return panel;
-    }
-    
-    /**
-     * Creates the AI difficulty selection panel.
-     * 
-     * @return the AI difficulty panel
-     */
-    private JPanel createAIDifficultyPanel() 
-    {
-        JPanel panel = createBackgroundPanel();
-        panel.setLayout(new BorderLayout());
-        
-        // Header label
-        JLabel headerLabel = new JLabel("Select AI Difficulty", SwingConstants.CENTER);
-        headerLabel.setFont(new Font("Serif", Font.BOLD, 40));
-        headerLabel.setForeground(Color.WHITE);
-        
-        // Difficulty description
-        JLabel descriptionLabel = new JLabel("<html><center>Choose how challenging your AI opponent will be.</center></html>", SwingConstants.CENTER);
-        descriptionLabel.setFont(new Font("Serif", Font.PLAIN, 20));
-        descriptionLabel.setForeground(Color.WHITE);
-        
-        // Title panel
-        JPanel titlePanel = new JPanel(new BorderLayout());
-        titlePanel.setOpaque(false);
-        titlePanel.add(headerLabel, BorderLayout.NORTH);
-        titlePanel.add(descriptionLabel, BorderLayout.CENTER);
-        
-        // Button panel
-        JPanel buttonPanel = new JPanel(new GridBagLayout());
-        buttonPanel.setOpaque(false);
-        buttonPanel.setBorder(new EmptyBorder(30, 0, 50, 0));
-
-        // Create buttons
-        JButton easyButton = createMenuButton("Easy");
-        JButton mediumButton = createMenuButton("Medium");
-        JButton hardButton = createMenuButton("Hard");
-        JButton backButton = createMenuButton("Back");
-        
-        // Add action listeners
-        easyButton.addActionListener(e -> launchGameMode(GameMode.AI_EASY));
-        mediumButton.addActionListener(e -> launchGameMode(GameMode.AI_MEDIUM));
-        hardButton.addActionListener(e -> launchGameMode(GameMode.AI_HARD));
-        backButton.addActionListener(e -> cardLayout.show(mainPanel, "ModeSelection"));
-        
-        // Add buttons as a packed, centered column
-        gblAdd(buttonPanel, easyButton, 0, STD_P);
-        gblAdd(buttonPanel, mediumButton, 1, STD_P);
-        gblAdd(buttonPanel, hardButton, 2, STD_P);
-        gblAdd(buttonPanel, backButton, 3, BACK_P);
-        
-        // Add components to main panel
-        panel.add(titlePanel, BorderLayout.NORTH);
-        panel.add(buttonPanel, BorderLayout.CENTER);
-        
-        return panel;
-    }
-    
-    /**
-     * Creates the custom-battle configuration screen, where each civilization
-     * can be set to a human or any AI tier and the mode chosen, enabling any
-     * matchup including AI-vs-AI spectating.
+     * Creates the battle-setup screen, where each civilization can be given
+     * to a human or any AI tier and the mode chosen. One screen expresses
+     * every local matchup: hot-seat, solo against an AI on either side, or
+     * an AI-vs-AI battle to spectate, in Classic or SALVO rules.
      *
-     * @return the custom-battle panel
+     * @return the battle-setup panel
      */
-    private JPanel createCustomBattlePanel()
+    private JPanel createBattleSetupPanel()
     {
-        JPanel panel = createBackgroundPanel();
-        panel.setLayout(new BorderLayout());
+        JPanel panel = createMenuColumnPanel();
 
-        JLabel headerLabel = new JLabel("Custom Battle", SwingConstants.CENTER);
-        headerLabel.setFont(new Font("Serif", Font.BOLD, 40));
-        headerLabel.setForeground(Color.WHITE);
-
-        JPanel form = new JPanel(new GridBagLayout());
-        form.setOpaque(false);
-        form.setBorder(new EmptyBorder(30, 0, 50, 0));
+        JLabel headerLabel = makeChipLabel("Prepare for Battle",
+            new Font("Serif", Font.BOLD, 40), GOLD, INK);
+        JLabel descriptionLabel = makeChipLabel(
+            "Assign each fleet to a human or an AI commander.",
+            new Font("Serif", Font.ITALIC, 16), INK, PARCHMENT);
 
         britonsSelector = createPlayerTypeSelector();
         franksSelector = createPlayerTypeSelector();
@@ -313,19 +208,19 @@ public class SeasOfYore
         modeRow.add(classicModeButton);
         modeRow.add(salvoModeButton);
 
-        JButton beginButton = createMenuButton("Begin Battle");
-        JButton backButton = createMenuButton("Back");
-        beginButton.addActionListener(e -> launchCustomBattle());
-        backButton.addActionListener(e -> cardLayout.show(mainPanel, "ModeSelection"));
+        JButton beginButton = createMenuButton("Begin Battle", Color.WHITE, SEA_BLUE);
+        JButton backButton = createMenuButton("Back", INK, PARCHMENT);
+        beginButton.addActionListener(e -> launchBattle());
+        backButton.addActionListener(e -> cardLayout.show(mainPanel, "TitleScreen"));
 
-        gblAdd(form, makeFieldRow("Britons (Player 1):", britonsSelector), 0, STD_P);
-        gblAdd(form, makeFieldRow("Franks (Player 2):", franksSelector), 1, STD_P);
-        gblAdd(form, modeRow, 2, STD_P);
-        gblAdd(form, beginButton, 3, STD_P);
-        gblAdd(form, backButton, 4, STD_P);
+        gblAdd(panel, headerLabel, 0, HEADER_P);
+        gblAdd(panel, descriptionLabel, 1, HEADER_P);
+        gblAdd(panel, makeFieldRow("Britons (Player 1):", britonsSelector), 2, STD_P);
+        gblAdd(panel, makeFieldRow("Franks (Player 2):", franksSelector), 3, STD_P);
+        gblAdd(panel, modeRow, 4, STD_P);
+        gblAdd(panel, beginButton, 5, STD_P);
+        gblAdd(panel, backButton, 6, BACK_P);
 
-        panel.add(headerLabel, BorderLayout.NORTH);
-        panel.add(form, BorderLayout.CENTER);
         return panel;
     }
 
@@ -339,7 +234,6 @@ public class SeasOfYore
     {
         JComboBox<PlayerType> box = new JComboBox<>(PlayerType.values());
         box.setFont(new Font("Serif", Font.BOLD, 18));
-        box.setMaximumSize(box.getPreferredSize());
         box.setRenderer(new DefaultListCellRenderer()
         {
             @Override
@@ -412,9 +306,9 @@ public class SeasOfYore
     }
 
     /**
-     * Reads the custom-battle selections and launches the configured game.
+     * Reads the battle-setup selections and launches the configured game.
      */
-    private void launchCustomBattle()
+    private void launchBattle()
     {
         PlayerType britons = (PlayerType) britonsSelector.getSelectedItem();
         PlayerType franks = (PlayerType) franksSelector.getSelectedItem();
@@ -427,73 +321,72 @@ public class SeasOfYore
         GameController controller = controllerFactory.createCustomController(
             britons, franks, salvo, () -> cardLayout.show(mainPanel, "TitleScreen"));
 
-        String panelName = "GamePanel_Custom";
+        String panelName = "GamePanel";
         mainPanel.add(controller, panelName);
         cardLayout.show(mainPanel, panelName);
     }
 
     /**
-     * Launches a game with the specified mode.
-     * Creates a new GameController instance using the factory.
+     * Creates a transparent panel laid out as one packed GridBagLayout column.
+     * Each screen is see-through so the single shared {@link ChoppySeasPanel}
+     * behind the card stack supplies the animated backdrop; the screens only
+     * contribute their labels and buttons.
      *
-     * @param mode the game mode to launch
+     * @return a transparent column panel to host one menu screen's contents
      */
-    private void launchGameMode(GameMode mode) {
-        try {
-            // Remove any existing game panels
-            for (Component comp : mainPanel.getComponents()) {
-                if (comp instanceof GameController) {
-                    mainPanel.remove(comp);
-                }
-            }
-            
-            // Create a new controller for the selected mode
-            GameController controller = controllerFactory.createController(mode, () -> {
-                cardLayout.show(mainPanel, "TitleScreen");
-            });
-            
-            // Add and show the new controller
-            String panelName = "GamePanel_" + mode.toString();
-            mainPanel.add(controller, panelName);
-            cardLayout.show(mainPanel, panelName);
-            
-        } catch (UnsupportedOperationException e) {
-            // Handle case where mode is not yet implemented
-            // In a real app, we'd show a dialog here
-            System.out.println("Game mode not yet implemented: " + mode.getDisplayName());
-        }
-    }
-    
-    /**
-     * Creates a transparent panel for a menu screen. Each screen is see-through
-     * so the single shared {@link ChoppySeasPanel} behind the card stack supplies
-     * the animated backdrop; the screens only contribute their labels and buttons.
-     *
-     * @return a transparent panel to host one menu screen's contents
-     */
-    private JPanel createBackgroundPanel() {
-        JPanel panel = new JPanel();
+    private JPanel createMenuColumnPanel()
+    {
+        JPanel panel = new JPanel(new GridBagLayout());
         panel.setOpaque(false);
         return panel;
     }
-    
+
     /**
-     * Creates a styled menu button.
-     * 
+     * Creates a styled menu button with the shared fixed footprint, in the
+     * given colors. Mirrors the javarominoes buildMenuButton helper: uniform
+     * geometry from the constants, identity from the colors.
+     *
      * @param text the button text
+     * @param fg   the text color
+     * @param bg   the button face color
      * @return a styled JButton
      */
-    private JButton createMenuButton(String text) {
+    private JButton createMenuButton(String text, Color fg, Color bg)
+    {
         JButton button = new JButton(text);
+        button.setPreferredSize(new Dimension(BUTTON_W, BUTTON_H));
         button.setFont(new Font("Serif", Font.BOLD, 20));
-        button.setAlignmentX(Component.CENTER_ALIGNMENT);
-        button.setMaximumSize(button.getPreferredSize());
+        button.setForeground(fg);
+        button.setBackground(bg);
+        button.setFocusable(false);
         return button;
     }
-    
+
+    /**
+     * Builds an opaque "chip" label: text on its own solid plate, the same
+     * device the javarominoes menus use to keep type legible over an animated
+     * background regardless of what is moving behind it.
+     *
+     * @param text the label text
+     * @param font the font to render it in
+     * @param fg   the text color
+     * @param bg   the plate color
+     * @return a styled, opaque JLabel
+     */
+    private JLabel makeChipLabel(String text, Font font, Color fg, Color bg)
+    {
+        JLabel label = new JLabel(text);
+        label.setFont(font);
+        label.setForeground(fg);
+        label.setBackground(bg);
+        label.setOpaque(true);
+        label.setBorder(BorderFactory.createEmptyBorder(8, 24, 8, 24));
+        return label;
+    }
+
     /**
      * Application entry point.
-     * 
+     *
      * @param args command-line arguments (not used)
      */
     public static void main(String[] args) {
@@ -503,6 +396,3 @@ public class SeasOfYore
         });
     }
 }
-
-
-
