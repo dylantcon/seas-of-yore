@@ -360,10 +360,16 @@ public class SeasOfYore
         field.setForeground(INK);
         field.setBackground(PARCHMENT);
         field.setCaretColor(INK);
-        field.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(WOOD_EDGE, 2),
+
+        // the border itself supplies the honorific: the title reads
+        // Commander above whatever name is signed inside it
+        javax.swing.border.TitledBorder titled = BorderFactory.createTitledBorder(
+            BorderFactory.createLineBorder(WOOD_EDGE, 2), "Commander");
+        titled.setTitleColor(PARCHMENT);
+        titled.setTitleFont(new Font("Serif", Font.BOLD | Font.ITALIC, 12));
+
+        field.setBorder(BorderFactory.createCompoundBorder(titled,
             BorderFactory.createEmptyBorder(2, 8, 2, 8)));
-        field.setToolTipText("Sign the muster roll: thy name, Commander");
         return field;
     }
 
