@@ -88,10 +88,22 @@ public class BattlePhase extends AbstractGamePhase
   {
     faller = null;
     controller.getCurrentQuadrantPanel().disableCellInteraction();
-    controller.getNextQuadrantPanel().enableCellInteraction();
     targeted = controller.getNextQuadrantPanel();
 
     controller.announceBattleStart(); // fanfare, first battle turn only
+
+    // A restored game may resume mid-turn: if this commander's shot already
+    // landed (saved after firing, before passing), only the flag remains.
+    // Without this check, save-and-reload bought a fresh shot every time.
+    if ( controller.getBoard().getShotsFiredThisTurn() >= 1 )
+    {
+      targeted.disableCellInteraction();
+      controller.logToTerminal( NTPROMPT );
+      controller.getTerminalPanel().setTurnButtonEnabled( true );
+      return;
+    }
+
+    targeted.enableCellInteraction();
     controller.logToTerminal( TURNPROMPT );
   }
 
@@ -141,6 +153,8 @@ public class BattlePhase extends AbstractGamePhase
    */
   private void resolveShot( QuadrantPanel quadrantPanel, int x, int y )
   {
+    controller.getBoard().recordShotFired(); // survives a mid-turn save
+
     boolean hit = quadrantPanel.fireAtCell( x, y );
     String message = hit ? getHitIdentifier( x, y ) : FIREMISS;
     // log resultant message in terminal

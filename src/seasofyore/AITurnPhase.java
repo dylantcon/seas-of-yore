@@ -84,17 +84,29 @@ public class AITurnPhase extends AbstractGamePhase
     controller.logToTerminal( TerminalPanel.ITALIC + aiType.getNickname()
                             + " surveys thy waters..." + TerminalPanel.RESET );
 
+    // Honour shots already resolved this turn: a game saved mid-AI-turn
+    // resumes with the remainder of the volley, not a fresh one.
+    int alreadyFired = controller.getBoard().getShotsFiredThisTurn();
+
     // initialize salvos for SALVO mode
     if ( salvoMode )
     {
-      salvosRemaining = controller.getCurrentPlayer().getRemainingShips();
+      salvosRemaining = Math.max( 0,
+          controller.getCurrentPlayer().getRemainingShips() - alreadyFired );
       controller.logToTerminal( String.format( "AI has %d shots this turn", salvosRemaining ) );
     }
 
-    // start the AI action sequence after a short delay
+    boolean turnAlreadySpent = salvoMode ? ( salvosRemaining == 0 )
+                                         : ( alreadyFired >= 1 );
+
+    // start the AI action sequence after a short delay -- or, if the volley
+    // was already spent before the save, simply hand the turn onward
     actionTimer = new Timer( AI_ACTION_DELAY, ( ActionEvent e ) ->
     {
-      performAIAction();
+      if ( turnAlreadySpent )
+        finishAITurn();
+      else
+        performAIAction();
     });
     actionTimer.setRepeats( false );
     actionTimer.start();
@@ -149,6 +161,7 @@ public class AITurnPhase extends AbstractGamePhase
   {
     faller = null;
     controller.getDragLayerPanel().repaint();
+    controller.getBoard().recordShotFired(); // survives a mid-turn save
 
     Player aiPlayer = controller.getCurrentPlayer();
     Player defender = controller.getNextPlayer();

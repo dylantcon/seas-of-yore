@@ -48,13 +48,41 @@ public class SalvoBattlePhase extends BattlePhase
   protected void onEnter()
   {
     controller.getCurrentQuadrantPanel().disableCellInteraction();
-    controller.getNextQuadrantPanel().enableCellInteraction();
     salvoTarget = targeted = controller.getNextQuadrantPanel();
     animationQueue = new LinkedList< >();
     shotGridPointQueue = new LinkedList< >();
     controller.announceBattleStart(); // fanfare, first battle turn only
-    controller.logToTerminal( formatSalvoEntry() );
     faller = null;
+
+    // A restored game may resume mid-turn: shots already resolved this turn
+    // come off the volley, and a fully spent one leaves only the flag.
+    // Without this, each save-and-reload bought a whole fresh salvo.
+    if ( computeShotsRemaining() == 0 )
+    {
+      salvoTarget.disableCellInteraction();
+      controller.logToTerminal( "Thy salvo is spent." );
+      controller.logToTerminal( NTPROMPT );
+      controller.getTerminalPanel().setTurnButtonEnabled( true );
+      return;
+    }
+
+    salvoTarget.enableCellInteraction();
+    controller.logToTerminal( formatSalvoEntry() );
+  }
+
+  /**
+   * The shots left in this turn's volley: one per surviving ship, less any
+   * already resolved this turn (nonzero only when resuming a restored game
+   * or re-entering after a pause mid-volley).
+   *
+   * @return the number of shots still owed to the volley
+   */
+  private int computeShotsRemaining()
+  {
+    int owed = controller.getCurrentPlayer().getRemainingShips()
+             - controller.getBoard().getShotsFiredThisTurn();
+    shotsRemaining = Math.max( 0, owed );
+    return shotsRemaining;
   }
  
   /**
@@ -148,6 +176,8 @@ public class SalvoBattlePhase extends BattlePhase
    */
   private void resolveNextShot()
   {
+    controller.getBoard().recordShotFired(); // survives a mid-turn save
+
     Point p = shotGridPointQueue.poll();
     salvoTarget.unlockCellForSalvo( p.x, p.y );
     salvoTarget.fireAtCell( p.x, p.y );
@@ -200,14 +230,14 @@ public class SalvoBattlePhase extends BattlePhase
   
   /**
    * Formats the message displayed when entering the Salvo battle phase,
-   * indicating the number of shots available for the turn.
+   * indicating the number of shots available for the turn. The count itself
+   * is settled by computeShotsRemaining() during onEnter.
    *
    * @return the formatted entry message
    */
   private String formatSalvoEntry()
   {
-    shotsRemaining = controller.getCurrentPlayer().getRemainingShips();
-    return String.format( " {SALVO}: You have %d shots this turn.", 
+    return String.format( " {SALVO}: You have %d shots this turn.",
                           shotsRemaining );
   }
 }

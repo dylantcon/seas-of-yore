@@ -356,7 +356,7 @@ public class SeasOfYore
     private javax.swing.JTextField makeNameField(String defaultName)
     {
         javax.swing.JTextField field = new javax.swing.JTextField(defaultName, 10);
-        field.setFont(new Font("Serif", Font.BOLD, 16));
+        field.setFont(new Font("Serif", Font.BOLD, 10));
         field.setForeground(INK);
         field.setBackground(PARCHMENT);
         field.setCaretColor(INK);
@@ -365,11 +365,11 @@ public class SeasOfYore
         // Commander above whatever name is signed inside it
         javax.swing.border.TitledBorder titled = BorderFactory.createTitledBorder(
             BorderFactory.createLineBorder(WOOD_EDGE, 2), "Commander");
-        titled.setTitleColor(PARCHMENT);
-        titled.setTitleFont(new Font("Serif", Font.BOLD | Font.ITALIC, 12));
+        titled.setTitleColor(WOOD_EDGE);
+        titled.setTitleFont(new Font("Serif", Font.BOLD, 8));
 
         field.setBorder(BorderFactory.createCompoundBorder(titled,
-            BorderFactory.createEmptyBorder(2, 8, 2, 8)));
+            BorderFactory.createEmptyBorder(1, 4, 1, 4)));
         return field;
     }
 

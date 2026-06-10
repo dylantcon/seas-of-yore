@@ -36,6 +36,14 @@ public class Board implements java.io.Serializable
    * Indicates whether the game is in the setup phase.
    */
   private boolean setupPhase;
+
+  /**
+   * Shots the current player has resolved in the turn under way, reset on
+   * every turn switch. Serialized with the board so a game saved mid-turn
+   * resumes with the volley already spent -- without this, saving after
+   * shooting and reloading granted a fresh volley indefinitely.
+   */
+  private int shotsFiredThisTurn = 0;
   
   /**
    * The quadrant representing the Britons' territory.
@@ -152,7 +160,9 @@ public class Board implements java.io.Serializable
   {
     if ( isPlacementFinal() && setupPhase )
       setupPhase = false;
-    
+
+    shotsFiredThisTurn = 0; // a fresh turn owes a fresh volley
+
     currentPlayer = ( currentPlayer == britons ? franks : britons );
     
     // if new current player is AI and in setup phase, place ships automatically
@@ -274,6 +284,27 @@ public class Board implements java.io.Serializable
   public PlayerType getFranksType()
   {
     return this.franksType;
+  }
+
+  /**
+   * Records one resolved shot for the turn under way. The battle phases
+   * call this as each shot lands, so the count survives a mid-turn save.
+   */
+  public void recordShotFired()
+  {
+    shotsFiredThisTurn++;
+  }
+
+  /**
+   * How many shots the current player has already resolved this turn. The
+   * battle phases consult this on entry to resume a restored game mid-turn:
+   * a spent volley leaves only the flag to click.
+   *
+   * @return the number of shots resolved in the turn under way
+   */
+  public int getShotsFiredThisTurn()
+  {
+    return shotsFiredThisTurn;
   }
 
   /**
