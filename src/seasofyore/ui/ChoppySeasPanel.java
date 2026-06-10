@@ -330,12 +330,18 @@ public class ChoppySeasPanel extends JPanel
     if ( mood == SeaMood.DEFEAT )
       paintStormClouds( g2, w );
 
-    if ( flag != null )
+    // the burning defeat flag paints behind the waves -- half-sunk in the
+    // storm -- while the victory flag and wreath fly proudly in FRONT of
+    // the water, so the celebration is never obscured
+    if ( flag != null && mood == SeaMood.DEFEAT )
       paintFlag( g2, w, h );
 
     // back-to-front: each nearer layer paints over the ones behind it
     for ( WaveLayer layer : layers )
       paintWaveLayer( g2, layer, w, h );
+
+    if ( flag != null && mood == SeaMood.VICTORY )
+      paintFlag( g2, w, h );
 
     g2.dispose();
   }
