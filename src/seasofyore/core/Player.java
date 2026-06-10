@@ -1,17 +1,24 @@
 package seasofyore.core;
 
+import java.io.Serializable;
 import java.util.List;
 
 /**
  * Represents a player in the Seas of Yore game, managing their fleet,
- * civilization, and game quadrants.
- * 
- * 
+ * civilization, and game quadrants. Serializable so a saved game can carry
+ * both commanders -- fleet, wounds, and (for AI players) strategy state.
+ *
+ *
  * @author dylan
- * 
+ *
  */
-public abstract class Player 
+public abstract class Player implements Serializable
 {
+  /**
+   * Serialization version for saved games.
+   */
+  private static final long serialVersionUID = 1L;
+
   /**
    * The fixed size of the player's fleet.
    */

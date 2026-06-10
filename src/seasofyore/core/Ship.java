@@ -7,8 +7,13 @@ package seasofyore.core;
  * @author dylan
  * 
  */
-public class Ship 
+public class Ship implements java.io.Serializable
 {
+    /**
+     * Serialization version for saved games.
+     */
+    private static final long serialVersionUID = 1L;
+
     /**
      * The health state of each deck of the ship.
      */

@@ -13,15 +13,35 @@ import seasofyore.core.PlayerFactory.AIDifficulty;
 public enum PlayerType
 {
   /** A human player who acts through the UI. */
-  HUMAN( "Human", null ),
+  HUMAN( "Human", "Mortal Commander",
+    "A livin', breathin' commander o' flesh an' blood, sailin' by wit, "
+    + "nerve, an' whatever luck the saints will spare." , null ),
+
   /** An AI using the Easy (checkerboard) strategy. */
-  AI_EASY( "Easy AI", AIDifficulty.EASY ),
+  AI_EASY( "Easy AI", "Deckhand Davey",
+    "A green deckhand what fires wherever the gulls point. Davey pokes at "
+    + "the waves like a blindfolded darter -- a fine first foe fer a fresh "
+    + "commander findin' their sea legs.", AIDifficulty.EASY ),
+
   /** An AI using the Medium (heuristic) strategy. */
-  AI_MEDIUM( "Medium AI", AIDifficulty.MEDIUM ),
+  AI_MEDIUM( "Medium AI", "Bosun Bramble",
+    "An old bosun with a nose fer blood in the water. Bramble wanders 'til "
+    + "he draws a single drop -- then follows the trail of it, plank by "
+    + "plank, 'til yer hull gives way.", AIDifficulty.MEDIUM ),
+
   /** An AI using the Hard (probability heatmap) strategy. */
-  AI_HARD( "Hard AI", AIDifficulty.HARD ),
+  AI_HARD( "Hard AI", "Admiral Greywake",
+    "A grizzled admiral what charts every wave with grim arithmetic. "
+    + "Greywake reads the sea like scripture, an' yer very silence tells "
+    + "him where ye hide.", AIDifficulty.HARD ),
+
   /** An AI using the Extreme (joint Monte Carlo + stealth placement) strategy. */
-  AI_EXTREME( "Extreme AI", AIDifficulty.EXTREME );
+  AI_EXTREME( "Extreme AI", "The Drowned King",
+    "A legend, say some; a lie, say others. But the tales agree on this: "
+    + "somethin' ancient watches from beneath the brine, an' it knows where "
+    + "thy keels rest afore thou dost. No chart explains it. No fleet has "
+    + "outlasted it. Face the Drowned King, an' yer name joins the myths at "
+    + "the bottom o' the sea.", AIDifficulty.EXTREME );
 
   /**
    * A human-readable label for menus.
@@ -29,20 +49,35 @@ public enum PlayerType
   private final String label;
 
   /**
+   * The commander's name, as the harbour-folk tell it. Used wherever the
+   * game speaks of an opponent with a voice rather than a setting.
+   */
+  private final String nickname;
+
+  /**
+   * The tavern-tale description of this commander, in proper sea-dog speak.
+   */
+  private final String lore;
+
+  /**
    * The AI difficulty this type maps to, or null for {@link #HUMAN}.
    */
   private final AIDifficulty difficulty;
 
   /**
-   * Constructs a PlayerType with a display label and (for AI types) the
+   * Constructs a PlayerType with display texts and (for AI types) the
    * difficulty it maps to.
    *
    * @param label      the menu label
+   * @param nickname   the commander's name in the game's voice
+   * @param lore       the tavern-tale description
    * @param difficulty the AI difficulty, or null for a human
    */
-  PlayerType( String label, AIDifficulty difficulty )
+  PlayerType( String label, String nickname, String lore, AIDifficulty difficulty )
   {
     this.label = label;
+    this.nickname = nickname;
+    this.lore = lore;
     this.difficulty = difficulty;
   }
 
@@ -101,5 +136,25 @@ public enum PlayerType
   public String getLabel()
   {
     return this.label;
+  }
+
+  /**
+   * The commander's name as the harbour-folk tell it.
+   *
+   * @return the nickname
+   */
+  public String getNickname()
+  {
+    return this.nickname;
+  }
+
+  /**
+   * The tavern-tale description of this commander.
+   *
+   * @return the lore text
+   */
+  public String getLore()
+  {
+    return this.lore;
   }
 }

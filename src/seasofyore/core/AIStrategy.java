@@ -5,10 +5,13 @@
 package seasofyore.core;
 
 /**
+ * The decision-making brain of an AI player. Extends Serializable so a
+ * saved game can carry its AI opponents' learned state (sunk-cell records,
+ * surviving-fleet models) along with the board.
  *
  * @author dylan
  */
-public interface AIStrategy 
+public interface AIStrategy extends java.io.Serializable
 {
   /**
    * Calculates a ship placement based on the strategy.

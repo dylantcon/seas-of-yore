@@ -9,8 +9,13 @@ import java.util.List;
  * 
  * @author dylan connolly
  */
-public class PlayerQuadrant 
+public class PlayerQuadrant implements java.io.Serializable
 {
+    /**
+     * Serialization version for saved games.
+     */
+    private static final long serialVersionUID = 1L;
+
     /**
      * Constant representing a water cell in the quadrant.
      */

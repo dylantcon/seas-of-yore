@@ -14,8 +14,13 @@ import java.util.List;
  * @author dylan connolly
  *
  */
-public class ShipHeading 
+public class ShipHeading implements java.io.Serializable
 {
+  /**
+   * Serialization version for saved games.
+   */
+  private static final long serialVersionUID = 1L;
+
   /**
    * Index representing the x-coordinate.
    */

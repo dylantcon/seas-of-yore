@@ -12,9 +12,13 @@ import seasofyore.ui.QuadrantPanel;
  * @author dylan connolly
  * 
  */
-public class Board 
+public class Board implements java.io.Serializable
 {
-  
+  /**
+   * Serialization version for saved games.
+   */
+  private static final long serialVersionUID = 1L;
+
   /**
    * The Britons player (Player 1) who started the Hundred Years' War.
    */
@@ -270,6 +274,17 @@ public class Board
   public PlayerType getFranksType()
   {
     return this.franksType;
+  }
+
+  /**
+   * Gets the kind of player controlling the given civilization.
+   *
+   * @param civ the civilization to look up
+   * @return the PlayerType commanding that civilization
+   */
+  public PlayerType getPlayerType( Civilization civ )
+  {
+    return ( civ == Civilization.BRITONS ) ? britonsType : franksType;
   }
 
   /**
