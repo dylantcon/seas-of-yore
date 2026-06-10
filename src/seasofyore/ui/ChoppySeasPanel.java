@@ -100,6 +100,11 @@ public class ChoppySeasPanel extends JPanel
    */
   private WaveLayer[] buildLayers()
   {
+    // NOTE: a layer's surface swings as far as 1.5x its amplitude below its
+    // baseline (swell + half-strength ripple), so its trough reaches
+    // baseFraction + 1.5 * amplitudeFrac. Keep that sum comfortably under
+    // 1.0 or the layer's surface dips below the panel's bottom edge and the
+    // layer behind it peeks through at every trough.
     return new WaveLayer[]
     {
       //             base   amp    wavelen  speed  colour
@@ -107,7 +112,7 @@ public class ChoppySeasPanel extends JPanel
       new WaveLayer( 0.55f, 0.030f, 0.42f,  0.70f, new Color( 0x244056 ) ),
       new WaveLayer( 0.68f, 0.035f, 0.33f,  0.95f, new Color( 0x1C3548 ) ),
       new WaveLayer( 0.80f, 0.045f, 0.26f,  1.25f, new Color( 0x142A3A ) ),
-      new WaveLayer( 0.92f, 0.055f, 0.20f,  1.60f, new Color( 0x0E2030 ) )
+      new WaveLayer( 0.90f, 0.040f, 0.20f,  1.60f, new Color( 0x0E2030 ) )
     };
   }
 
