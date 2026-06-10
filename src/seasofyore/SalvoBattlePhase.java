@@ -52,6 +52,7 @@ public class SalvoBattlePhase extends BattlePhase
     salvoTarget = targeted = controller.getNextQuadrantPanel();
     animationQueue = new LinkedList< >();
     shotGridPointQueue = new LinkedList< >();
+    controller.announceBattleStart(); // fanfare, first battle turn only
     controller.logToTerminal( formatSalvoEntry() );
     faller = null;
   }

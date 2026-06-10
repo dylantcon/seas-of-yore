@@ -76,6 +76,7 @@ public class AITurnPhase extends AbstractGamePhase
     controller.getTerminalPanel().setTurnButtonEnabled( false );
 
     // display message that AI is taking its turn
+    controller.announceBattleStart(); // fanfare, first battle turn only
     controller.logToTerminal( "The enemy commander surveys thy waters..." );
 
     // initialize salvos for SALVO mode

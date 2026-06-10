@@ -54,6 +54,12 @@ public class BattlePhase extends AbstractGamePhase
    * Prompt to pass the turn to the next player.
    */
   public static final String NTPROMPT = "-= Click your flag to pass to next player =-";
+
+  /**
+   * Announcement that a new turn has begun and the player may fire.
+   */
+  public static final String TURNPROMPT = "'Tis thy turn! Choose a cell in "
+                                      + "thine enemy's waters.";
   
   /**
    * The QuadrantPanel representing the opponent's quadrant.
@@ -77,6 +83,9 @@ public class BattlePhase extends AbstractGamePhase
     controller.getCurrentQuadrantPanel().disableCellInteraction();
     controller.getNextQuadrantPanel().enableCellInteraction();
     targeted = controller.getNextQuadrantPanel();
+
+    controller.announceBattleStart(); // fanfare, first battle turn only
+    controller.logToTerminal( TURNPROMPT );
   }
 
   /**

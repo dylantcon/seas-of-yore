@@ -143,6 +143,11 @@ public class GameController extends JLayeredPane implements QuadrantListener
   private static final int TB_BUTTON_DIM = 75;
   
   /**
+   * Whether the battle-phase fanfare has been logged yet this game.
+   */
+  private boolean battleAnnounced = false;
+
+  /**
    * Indicates if the curtain is fully closed.
    */
   private boolean curtainClosedState = false;
@@ -386,6 +391,7 @@ public class GameController extends JLayeredPane implements QuadrantListener
   {
     this.removeAll();
     currentPhase = null;
+    battleAnnounced = false;
     // initialize backend logic
     board = new Board( britonsType, franksType );
     board.prepareForPlay();   // settle AI setup so only humans see placement UI
@@ -440,13 +446,10 @@ public class GameController extends JLayeredPane implements QuadrantListener
     // Get appropriate phase based on game state and next player type
     GamePhase phase;
 
-    if ( board.isPlacementFinal() ) 
+    if ( board.isPlacementFinal() )
     {
-      logToTerminal(BattlePhase.HEARYE);
-      logToTerminal(BattlePhase.FIREINS);
-
       // Check if current player is AI
-      if ( getCurrentPlayer().isAutonomous() ) 
+      if ( getCurrentPlayer().isAutonomous() )
       {
         phase = PhaseFactory.createAITurnPhase( salvoMode );
       } 
@@ -527,6 +530,22 @@ public class GameController extends JLayeredPane implements QuadrantListener
   public void logToTerminal( String message )
   {
     terminal.logMessage( "[" + current.getCiv() + "] " + message );
+  }
+
+  /**
+   * Logs the battle-phase fanfare exactly once per game, the first time a
+   * battle turn actually begins. The battle phases call this from onEnter
+   * so the announcement lands wherever setup happens to end, rather than
+   * being tied to game start (where placement is rarely final).
+   */
+  public void announceBattleStart()
+  {
+    if ( battleAnnounced )
+      return;
+
+    battleAnnounced = true;
+    logToTerminal( BattlePhase.HEARYE );
+    logToTerminal( BattlePhase.FIREINS );
   }
   
   /**
@@ -685,9 +704,20 @@ public class GameController extends JLayeredPane implements QuadrantListener
    */
   private void swapStateAndUI()
   {
+    // Remember whether the player receiving the turn still owes a fleet:
+    // board.switchTurns() auto-places for an AI in that position, and the
+    // event deserves the same announcement a human's "Fleet placed!" gets.
+    Player handedTo = board.getNextPlayer();
+    boolean fleetWasPending = handedTo.isAutonomous()
+                           && !handedTo.hasPlacedAllShips();
+
     // Always update the game state
     board.switchTurns();
     current = board.getCurrentPlayer();
+
+    if ( fleetWasPending && handedTo.hasPlacedAllShips() )
+      terminal.logMessage( "[" + handedTo.getCiv() + "] The enemy commander "
+                         + "hath deployed their fleet!" );
 
     // Update the turn indicator
     terminal.updateTurnButtonIcon();
