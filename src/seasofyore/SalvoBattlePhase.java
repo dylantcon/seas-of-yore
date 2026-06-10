@@ -145,10 +145,9 @@ public class SalvoBattlePhase extends BattlePhase
       if ( controller.getNextPlayer().hasLost() )
       {
         controller.logToTerminal( VICTORY );
-        String winner = controller.getCurrentPlayerCivilization().toString();
-        controller.showWinScreen( winner );
+        controller.showWinScreen( controller.getCurrentPlayerCivilization() );
         return;
-      }  
+      }
       controller.logToTerminal( NTPROMPT );
       controller.getTerminalPanel().setTurnButtonEnabled( true );
     }

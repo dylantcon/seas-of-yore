@@ -176,7 +176,7 @@ public class AITurnPhase extends AbstractGamePhase
     if ( defender.hasLost() )
     {
       controller.logToTerminal( "The " + defender.getCiv() + " fleet is vanquished!" );
-      controller.showWinScreen( aiPlayer.getCiv().toString() );
+      controller.showWinScreen( aiPlayer.getCiv() );
       return;
     }
 

@@ -672,20 +672,31 @@ public class GameController extends JLayeredPane implements QuadrantListener
   }
   
   /**
-   * Displays the win screen with the specified winner's name and actions for play again and exit.
+   * Displays the end-of-game screen, aware of the local player's goal. The
+   * victory/defeat distinction tracks the same line the curtain does: games
+   * with two humans (the curtain games) always have a winner at the keyboard,
+   * so they -- and spectated matches -- only ever celebrate the winner.
+   * Defeat is shown solely in curtainless solo games, when the lone human's
+   * fleet is the one beneath the waves; their own flag burns. When networked
+   * play distinguishes a local player from a remote one, the same branch
+   * decides for the local side.
    *
-   * @param winner the name of the winning player or civilization
+   * @param winner the civilization that won the game
    */
-  public void showWinScreen( String winner ) 
+  public void showWinScreen( Civilization winner )
   {
+    Player soleHuman = board.getSoleHuman();
+    boolean defeat = ( soleHuman != null && soleHuman.getCiv() != winner );
+    Civilization featured = defeat ? soleHuman.getCiv() : winner;
+
     winScreen = new WinScreenPanel
-    ( 
-      winner, ( ActionEvent e ) -> {
+    (
+      featured, defeat, ( ActionEvent e ) -> {
         // play again actionPerformed listener
         remove( winScreen );
         this.startGame();
         returnToTitle.run();
-        
+
     },
       // exit actionPerformed listener via lambda
       ( ActionEvent e ) -> System.exit( 0 )
