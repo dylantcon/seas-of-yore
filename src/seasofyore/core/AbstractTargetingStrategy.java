@@ -118,7 +118,34 @@ public abstract class AbstractTargetingStrategy implements AIStrategy
     if ( predictive != null )
       return predictive;
 
-    return selectHuntTarget( enemyQuadrant );
+    int[] hunt = selectHuntTarget( enemyQuadrant );
+    if ( hunt != null )
+      return hunt;
+
+    // Never pass while shots remain. A tier's model can wedge itself -- e.g.
+    // tangled adjacent ships mislead the sunk-cell bookkeeping until no
+    // "consistent" placement seems to exist anywhere -- and returning null
+    // here would make the AI skip its turn forever. Any unfired cell keeps
+    // the game moving and feeds the model corrective information.
+    return anyTargetable( enemyQuadrant );
+  }
+
+  /**
+   * The last-resort shot: a uniformly random unfired cell, or null only when
+   * the entire board has been fired upon (at which point the game is over).
+   *
+   * @param quad the enemy quadrant
+   * @return a random targetable cell as [x, y], or null if none remains
+   */
+  private int[] anyTargetable( PlayerQuadrant quad )
+  {
+    List<int[]> open = new ArrayList<>();
+    for ( int x = 0; x < SIZE; x++ )
+      for ( int y = 0; y < SIZE; y++ )
+        if ( quad.cellIsTargetable( x, y ) )
+          open.add( new int[] { x, y } );
+
+    return open.isEmpty() ? null : open.get( random.nextInt( open.size() ) );
   }
 
   /**
@@ -328,11 +355,13 @@ public abstract class AbstractTargetingStrategy implements AIStrategy
   }
 
   /**
-   * Marks the cells of a just-sunk ship as resolved. Starting from the killing
-   * shot, it walks to the far end of the contiguous run of hits along whichever
-   * axis is long enough to contain the ship, then claims {@code length} cells
-   * forward. This is robust for ships placed with at least one cell of spacing,
-   * which is the overwhelmingly common case.
+   * Marks the cells of a just-sunk ship as resolved. The ship is some
+   * {@code length}-cell window of the contiguous hit run through the killing
+   * shot -- but when adjacent ships merge their hits into one long run, several
+   * windows are possible and claiming the wrong one poisons the model (cells
+   * of a living ship get marked dead, and dead cells stay "wounded"). So this
+   * claims only the cells common to <em>every</em> feasible window: exact when
+   * the run length matches the ship, conservative when ships are tangled.
    *
    * @param x      the x-coordinate of the killing shot
    * @param y      the y-coordinate of the killing shot
@@ -355,8 +384,18 @@ public abstract class AbstractTargetingStrategy implements AIStrategy
       sy -= axis[1];
     }
 
-    // claim `length` cells forward from the run start
-    for ( int i = 0; i < length; i++ )
+    // walk forwards to measure the run, and express the killing shot as a
+    // scalar offset from the run start along the axis
+    int runLen = hitRunLength( x, y, axis[0], axis[1] );
+    int kill = ( x - sx ) * axis[0] + ( y - sy ) * axis[1];
+
+    // feasible windows of size `length` within the run that contain the kill
+    // start at offsets [lo, hi]; the cells common to all of them span
+    // [hi, lo + length - 1] (a non-empty range always containing the kill)
+    int lo = Math.max( 0, kill - length + 1 );
+    int hi = Math.min( kill, runLen - length );
+
+    for ( int i = hi; i <= lo + length - 1; i++ )
       sunkCells.add( key( sx + i * axis[0], sy + i * axis[1] ) );
   }
 
