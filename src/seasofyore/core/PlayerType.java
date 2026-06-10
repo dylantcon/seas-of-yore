@@ -19,7 +19,9 @@ public enum PlayerType
   /** An AI using the Medium (heuristic) strategy. */
   AI_MEDIUM( "Medium AI", AIDifficulty.MEDIUM ),
   /** An AI using the Hard (probability heatmap) strategy. */
-  AI_HARD( "Hard AI", AIDifficulty.HARD );
+  AI_HARD( "Hard AI", AIDifficulty.HARD ),
+  /** An AI using the Extreme (joint Monte Carlo + stealth placement) strategy. */
+  AI_EXTREME( "Extreme AI", AIDifficulty.EXTREME );
 
   /**
    * A human-readable label for menus.
@@ -64,6 +66,8 @@ public enum PlayerType
         return AI_MEDIUM;
       case HARD:
         return AI_HARD;
+      case EXTREME:
+        return AI_EXTREME;
       default:
         throw new IllegalArgumentException( "Unknown difficulty: " + difficulty );
     }

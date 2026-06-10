@@ -57,16 +57,19 @@ public class PlayerFactory
       case HARD:
         strategy = new HardStrategy();
         break;
+      case EXTREME:
+        strategy = new ExtremeStrategy();
+        break;
       default:
         strategy = new RandomGuessStrategy();
         break;
     }
-    
+
     return new AIPlayer( civ, fQ, eQ, strategy );
   }
-  
+
   public enum AIDifficulty
   {
-    EASY, MEDIUM, HARD
+    EASY, MEDIUM, HARD, EXTREME
   }
 }
