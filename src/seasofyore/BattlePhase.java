@@ -141,6 +141,12 @@ public class BattlePhase extends AbstractGamePhase
   @Override
   public void cleanup()
   {
+    if ( faller != null )
+    {
+      faller.stop(); // never let an in-flight shot resolve after the phase dies
+      faller = null;
+    }
+
     controller.getDragLayerPanel().removeAll();
     controller.getDragLayerPanel().repaint();
     
