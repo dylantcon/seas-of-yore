@@ -52,6 +52,7 @@ public final class PlacementToolbar extends JPanel
       gc.getTerminal().setTurnButtonEnabled( true );
       gc.repaint();
     });
+    randomizeButton.setToolTipText("Random ships");
     add( randomizeButton );
 
     CustomButton garbageButton = new CustomButton(
@@ -64,6 +65,7 @@ public final class PlacementToolbar extends JPanel
       gc.getBoardPanel().getFriendlyPanel().enableCellInteraction();
       gc.repaint();
     });
+    garbageButton.setToolTipText("Clear all");
     add( garbageButton );
 
     add( Box.createVerticalGlue() );

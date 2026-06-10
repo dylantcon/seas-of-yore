@@ -68,8 +68,6 @@ public class SeasOfYore
     private JComboBox<PlayerType> franksSelector;
     private javax.swing.JTextField britonsNameField;
     private javax.swing.JTextField franksNameField;
-    private JPanel britonsNameRow;
-    private JPanel franksNameRow;
     private JButton classicModeButton;
     private JButton salvoModeButton;
     private JButton stoneToggleButton;
@@ -238,12 +236,11 @@ public class SeasOfYore
         franksSelector.setSelectedItem(PlayerType.AI_MEDIUM);
 
         // human commanders sign the muster roll; the game imposes the
-        // "Commander <name>" honorific wherever it speaks of them. The rows
-        // only appear for sides a human actually commands.
+        // Commander honorific wherever it speaks of them. Each field sits
+        // inline with its side's selector and only appears while a human
+        // commands that side.
         britonsNameField = makeNameField("Arthur");
         franksNameField = makeNameField("Charlemagne");
-        britonsNameRow = makeFieldRow("Signed, Commander", britonsNameField);
-        franksNameRow = makeFieldRow("Signed, Commander", franksNameField);
 
         // rules of engagement: a two-plank toggle instead of radio buttons
         classicModeButton = makeDeckToggle("Classic", 120);
@@ -286,14 +283,17 @@ public class SeasOfYore
             refreshNameRows();
         });
 
-        Insets tightP = new Insets(0, 20, 6, 20); // name rows hug their selector
-        gblAdd(deck, makeFieldRow("Britons (Player 1):", britonsSelector), 0, STD_P);
-        gblAdd(deck, britonsNameRow, 1, tightP);
-        gblAdd(deck, makeFieldRow("Franks (Player 2):", franksSelector), 2, STD_P);
-        gblAdd(deck, franksNameRow, 3, tightP);
-        gblAdd(deck, modeRow, 4, STD_P);
-        gblAdd(deck, stoneToggleButton, 5, STD_P);
-        gblAdd(deck, commanderLoreLabel, 6, STD_P);
+        // the name field rides the same row as its side's selector
+        JPanel britonsRow = makeFieldRow("Britons (Player 1):", britonsSelector);
+        britonsRow.add(britonsNameField);
+        JPanel franksRow = makeFieldRow("Franks (Player 2):", franksSelector);
+        franksRow.add(franksNameField);
+
+        gblAdd(deck, britonsRow, 0, STD_P);
+        gblAdd(deck, franksRow, 1, STD_P);
+        gblAdd(deck, modeRow, 2, STD_P);
+        gblAdd(deck, stoneToggleButton, 3, STD_P);
+        gblAdd(deck, commanderLoreLabel, 4, STD_P);
 
         refreshModeToggle();
         refreshStoneToggle();
@@ -363,17 +363,18 @@ public class SeasOfYore
         field.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLineBorder(WOOD_EDGE, 2),
             BorderFactory.createEmptyBorder(2, 8, 2, 8)));
+        field.setToolTipText("Sign the muster roll: thy name, Commander");
         return field;
     }
 
     /**
-     * Shows each side's muster-roll row only while a human commands it; AI
+     * Shows each side's muster-roll field only while a human commands it; AI
      * commanders already have names the harbour-folk gave them.
      */
     private void refreshNameRows()
     {
-        britonsNameRow.setVisible(britonsSelector.getSelectedItem() == PlayerType.HUMAN);
-        franksNameRow.setVisible(franksSelector.getSelectedItem() == PlayerType.HUMAN);
+        britonsNameField.setVisible(britonsSelector.getSelectedItem() == PlayerType.HUMAN);
+        franksNameField.setVisible(franksSelector.getSelectedItem() == PlayerType.HUMAN);
     }
 
     /**
