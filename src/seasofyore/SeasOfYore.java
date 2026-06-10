@@ -6,8 +6,9 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.FlowLayout;
 import java.awt.Font;
-import javax.swing.Box;
-import javax.swing.BoxLayout;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
 import javax.swing.ButtonGroup;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
@@ -41,6 +42,11 @@ public class SeasOfYore
     private JPanel modeSelectionPanel;
     private JPanel aiDifficultyPanel;
     private JPanel customBattlePanel;
+
+    // menu spacing insets, mirroring the javarominoes menu layout: a packed
+    // GridBagLayout column where the gaps come from insets, not struts
+    private static final Insets STD_P = new Insets(10, 20, 10, 20);
+    private static final Insets BACK_P = new Insets(30, 20, 10, 20);
 
     // Custom-battle controls (read when the battle is launched)
     private JComboBox<PlayerType> britonsSelector;
@@ -133,25 +139,21 @@ public class SeasOfYore
         titleLabel.setForeground(Color.MAGENTA);
         
         // Button panel
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.Y_AXIS));
+        JPanel buttonPanel = new JPanel(new GridBagLayout());
         buttonPanel.setOpaque(false);
         buttonPanel.setBorder(new EmptyBorder(0, 0, 50, 0)); // Add some bottom padding
-        
+
         // Create buttons
         JButton playButton = createMenuButton("Play Game");
         JButton quitButton = createMenuButton("Quit");
-        
+
         // Add action listeners
         playButton.addActionListener(e -> cardLayout.show(mainPanel, "ModeSelection"));
         quitButton.addActionListener(e -> System.exit(0));
-        
-        // Add buttons to panel with centering
-        buttonPanel.add(Box.createVerticalGlue());
-        addCenteredButton(buttonPanel, playButton);
-        buttonPanel.add(Box.createVerticalStrut(20));
-        addCenteredButton(buttonPanel, quitButton);
-        buttonPanel.add(Box.createVerticalGlue());
+
+        // Add buttons as a packed, centered column
+        gblAdd(buttonPanel, playButton, 0, STD_P);
+        gblAdd(buttonPanel, quitButton, 1, STD_P);
         
         // Add components to main panel
         panel.add(titleLabel, BorderLayout.NORTH);
@@ -176,11 +178,10 @@ public class SeasOfYore
         headerLabel.setForeground(Color.WHITE);
         
         // Button panel
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.Y_AXIS));
+        JPanel buttonPanel = new JPanel(new GridBagLayout());
         buttonPanel.setOpaque(false);
         buttonPanel.setBorder(new EmptyBorder(30, 0, 50, 0));
-        
+
         // Create buttons
         JButton singlePlayerButton = createMenuButton("Single Player (vs AI)");
         JButton classicButton = createMenuButton("Classic Game");
@@ -201,22 +202,14 @@ public class SeasOfYore
         customButton.addActionListener(e -> cardLayout.show(mainPanel, "CustomBattle"));
         backButton.addActionListener(e -> cardLayout.show(mainPanel, "TitleScreen"));
 
-        // Add buttons to panel with spacing
-        buttonPanel.add(Box.createVerticalGlue());
-        addCenteredButton(buttonPanel, singlePlayerButton);
-        buttonPanel.add(Box.createVerticalStrut(15));
-        addCenteredButton(buttonPanel, classicButton);
-        buttonPanel.add(Box.createVerticalStrut(15));
-        addCenteredButton(buttonPanel, salvoButton);
-        buttonPanel.add(Box.createVerticalStrut(15));
-        addCenteredButton(buttonPanel, customButton);
-        buttonPanel.add(Box.createVerticalStrut(15));
-        addCenteredButton(buttonPanel, lanButton);
-        buttonPanel.add(Box.createVerticalStrut(15));
-        addCenteredButton(buttonPanel, onlineButton);
-        buttonPanel.add(Box.createVerticalStrut(30));
-        addCenteredButton(buttonPanel, backButton);
-        buttonPanel.add(Box.createVerticalGlue());
+        // Add buttons as a packed, centered column
+        gblAdd(buttonPanel, singlePlayerButton, 0, STD_P);
+        gblAdd(buttonPanel, classicButton, 1, STD_P);
+        gblAdd(buttonPanel, salvoButton, 2, STD_P);
+        gblAdd(buttonPanel, customButton, 3, STD_P);
+        gblAdd(buttonPanel, lanButton, 4, STD_P);
+        gblAdd(buttonPanel, onlineButton, 5, STD_P);
+        gblAdd(buttonPanel, backButton, 6, BACK_P);
         
         // Add components to main panel
         panel.add(headerLabel, BorderLayout.NORTH);
@@ -252,11 +245,10 @@ public class SeasOfYore
         titlePanel.add(descriptionLabel, BorderLayout.CENTER);
         
         // Button panel
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.Y_AXIS));
+        JPanel buttonPanel = new JPanel(new GridBagLayout());
         buttonPanel.setOpaque(false);
         buttonPanel.setBorder(new EmptyBorder(30, 0, 50, 0));
-        
+
         // Create buttons
         JButton easyButton = createMenuButton("Easy");
         JButton mediumButton = createMenuButton("Medium");
@@ -269,16 +261,11 @@ public class SeasOfYore
         hardButton.addActionListener(e -> launchGameMode(GameMode.AI_HARD));
         backButton.addActionListener(e -> cardLayout.show(mainPanel, "ModeSelection"));
         
-        // Add buttons to panel with spacing
-        buttonPanel.add(Box.createVerticalGlue());
-        addCenteredButton(buttonPanel, easyButton);
-        buttonPanel.add(Box.createVerticalStrut(15));
-        addCenteredButton(buttonPanel, mediumButton);
-        buttonPanel.add(Box.createVerticalStrut(15));
-        addCenteredButton(buttonPanel, hardButton);
-        buttonPanel.add(Box.createVerticalStrut(30));
-        addCenteredButton(buttonPanel, backButton);
-        buttonPanel.add(Box.createVerticalGlue());
+        // Add buttons as a packed, centered column
+        gblAdd(buttonPanel, easyButton, 0, STD_P);
+        gblAdd(buttonPanel, mediumButton, 1, STD_P);
+        gblAdd(buttonPanel, hardButton, 2, STD_P);
+        gblAdd(buttonPanel, backButton, 3, BACK_P);
         
         // Add components to main panel
         panel.add(titlePanel, BorderLayout.NORTH);
@@ -303,8 +290,7 @@ public class SeasOfYore
         headerLabel.setFont(new Font("Serif", Font.BOLD, 40));
         headerLabel.setForeground(Color.WHITE);
 
-        JPanel form = new JPanel();
-        form.setLayout(new BoxLayout(form, BoxLayout.Y_AXIS));
+        JPanel form = new JPanel(new GridBagLayout());
         form.setOpaque(false);
         form.setBorder(new EmptyBorder(30, 0, 50, 0));
 
@@ -332,17 +318,11 @@ public class SeasOfYore
         beginButton.addActionListener(e -> launchCustomBattle());
         backButton.addActionListener(e -> cardLayout.show(mainPanel, "ModeSelection"));
 
-        form.add(Box.createVerticalGlue());
-        form.add(makeFieldRow("Britons (Player 1):", britonsSelector));
-        form.add(Box.createVerticalStrut(15));
-        form.add(makeFieldRow("Franks (Player 2):", franksSelector));
-        form.add(Box.createVerticalStrut(20));
-        addCenteredComponent(form, modeRow);
-        form.add(Box.createVerticalStrut(25));
-        addCenteredButton(form, beginButton);
-        form.add(Box.createVerticalStrut(15));
-        addCenteredButton(form, backButton);
-        form.add(Box.createVerticalGlue());
+        gblAdd(form, makeFieldRow("Britons (Player 1):", britonsSelector), 0, STD_P);
+        gblAdd(form, makeFieldRow("Franks (Player 2):", franksSelector), 1, STD_P);
+        gblAdd(form, modeRow, 2, STD_P);
+        gblAdd(form, beginButton, 3, STD_P);
+        gblAdd(form, backButton, 4, STD_P);
 
         panel.add(headerLabel, BorderLayout.NORTH);
         panel.add(form, BorderLayout.CENTER);
@@ -407,17 +387,28 @@ public class SeasOfYore
     }
 
     /**
-     * Adds a component to a vertical panel, centered horizontally.
+     * Adds a component to a GridBagLayout panel as one row of a packed,
+     * centered column. With every weight at zero the column hugs the middle
+     * of the panel and the insets alone control the gaps -- the same
+     * approach as the javarominoes menus, so buttons stay close together
+     * no matter how much room the window has.
      *
-     * @param panel     the panel to add to
-     * @param component the component to center
+     * @param panel the GridBagLayout panel to add to
+     * @param c     the component forming this row
+     * @param gY    the row index in the column
+     * @param i     the insets supplying the spacing around this row
      */
-    private void addCenteredComponent(JPanel panel, java.awt.Component component)
+    private void gblAdd(JPanel panel, Component c, int gY, Insets i)
     {
-        JPanel wrapper = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        wrapper.setOpaque(false);
-        wrapper.add(component);
-        panel.add(wrapper);
+        GridBagConstraints gbc = new GridBagConstraints();
+
+        gbc.gridx = 0;  // single packed column
+        gbc.gridy = gY; // populate gridY
+
+        gbc.anchor = GridBagConstraints.CENTER; // center each row
+        gbc.insets = i; // populate inset with supplied Inset instance
+
+        panel.add(c, gbc);
     }
 
     /**
@@ -498,19 +489,6 @@ public class SeasOfYore
         button.setAlignmentX(Component.CENTER_ALIGNMENT);
         button.setMaximumSize(button.getPreferredSize());
         return button;
-    }
-    
-    /**
-     * Adds a button to a panel with center alignment.
-     * 
-     * @param panel the panel to add the button to
-     * @param button the button to add
-     */
-    private void addCenteredButton(JPanel panel, JButton button) {
-        JPanel wrapper = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        wrapper.setOpaque(false);
-        wrapper.add(button);
-        panel.add(wrapper);
     }
     
     /**
