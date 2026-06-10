@@ -1,1 +1,0 @@
-packageSearchIndex = [{"l":"All Packages","u":"allpackages-index.html"},{"l":"seasofyore"},{"l":"seasofyore.core"},{"l":"seasofyore.ui"}];updateSearchResults();
