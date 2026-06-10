@@ -6,16 +6,21 @@ package seasofyore;
 
 import seasofyore.core.Player;
 import seasofyore.core.Ship;
+import seasofyore.ui.FallingStoneAnimation;
 import seasofyore.ui.QuadrantPanel;
 import java.awt.Graphics;
+import java.awt.Point;
 import java.awt.event.ActionEvent;
 import javax.swing.Timer;
 
 /**
- * Represents a game phase where an AI player takes its turn.
- * Handles automated AI actions without requiring the curtain transition
- * or manual user interaction to proceed.
- * 
+ * Represents a game phase where an AI player takes its turn. Like every
+ * phase, it belongs to the CURRENT player: the AI is the current player and
+ * attacks the next player's quadrant. The phase paces its shots with timers,
+ * drops the same falling-stone animation a human attack gets, and hands the
+ * turn back automatically -- no curtain or flag click is ever required to
+ * get past an AI's turn.
+ *
  * @author dylan
  */
 public class AITurnPhase extends AbstractGamePhase
@@ -24,37 +29,38 @@ public class AITurnPhase extends AbstractGamePhase
    * The delay between AI actions in milliseconds
    */
   private static final int AI_ACTION_DELAY = 750;
-  
+
   /**
    * Timer for controlling AI action timing
    */
   private Timer actionTimer;
-  
+
   /**
-   * Indicates whether the AI has completed its turn.
+   * The falling-stone animation for the AI's shot in flight, mirroring the
+   * effect rendered for human attacks in BattlePhase.
    */
-  private boolean turnComplete = false;
-  
+  private FallingStoneAnimation faller;
+
   /**
    * The salvos remaining for the AI in Salvo mode.
    */
   private int salvosRemaining = 0;
-  
+
   /**
    * Whether the game is in Salvo mode.
    */
   private final boolean salvoMode;
-  
+
   /**
    * Constructs a new AI turn phase.
-   * 
+   *
    * @param salvoMode true if the game is in Salvo mode; false otherwise
    */
   public AITurnPhase( boolean salvoMode )
   {
     this.salvoMode = salvoMode;
   }
-  
+
   /**
    * Called when the phase is entered.
    * Sets up the AI turn and initiates the first action.
@@ -62,25 +68,23 @@ public class AITurnPhase extends AbstractGamePhase
   @Override
   protected void onEnter()
   {
-    // AI attacks the human player's quadrant (current player's quadrant)
-    QuadrantPanel targetPanel = controller.getCurrentQuadrantPanel();
-    
-    // Disable interaction during AI turn
-    targetPanel.disableCellInteraction();
+    faller = null;
+
+    // nobody clicks anything during an AI turn
+    controller.getCurrentQuadrantPanel().disableCellInteraction();
     controller.getNextQuadrantPanel().disableCellInteraction();
-    
+    controller.getTerminalPanel().setTurnButtonEnabled( false );
+
     // display message that AI is taking its turn
-    controller.logToTerminal( "AI opponent is preparing to attack..." );
-    
-    Player aiPlayer = controller.getNextPlayer();
-    
+    controller.logToTerminal( "The enemy commander surveys thy waters..." );
+
     // initialize salvos for SALVO mode
     if ( salvoMode )
     {
-      salvosRemaining = aiPlayer.getRemainingShips();
+      salvosRemaining = controller.getCurrentPlayer().getRemainingShips();
       controller.logToTerminal( String.format( "AI has %d shots this turn", salvosRemaining ) );
     }
-    
+
     // start the AI action sequence after a short delay
     actionTimer = new Timer( AI_ACTION_DELAY, ( ActionEvent e ) ->
     {
@@ -89,115 +93,130 @@ public class AITurnPhase extends AbstractGamePhase
     actionTimer.setRepeats( false );
     actionTimer.start();
   }
-  
+
   /**
-   * Performs a single AI action (attack).
+   * Performs a single AI action: picks a target cell and launches the stone
+   * at it. The shot itself resolves when the animation lands.
    */
   private void performAIAction()
   {
-    // get the AI player and target panel
-    Player aiPlayer = controller.getNextPlayer();
-    QuadrantPanel targetPanel = controller.getCurrentQuadrantPanel();
-    
+    Player aiPlayer = controller.getCurrentPlayer();
+    QuadrantPanel targetPanel = controller.getNextQuadrantPanel();
+
     // calculate AI's next attack coordinates
     int[] attackCoords = aiPlayer.calculateNextAttack();
-    
-    if ( attackCoords != null )
+
+    if ( attackCoords == null )
     {
-      int x = attackCoords[0];
-      int y = attackCoords[1];
-      
-      // A true HIT means the defender actually has a ship on this cell. We must
-      // NOT use the return of fireAtCell(): that only reports the shot was
-      // legal (it returns true for misses too), which made every valid shot
-      // read as a "hit". getShipAt is independent of fired state, so we can ask
-      // it either side of the shot.
-      Player defender = controller.getCurrentPlayer();
-      boolean hit = ( defender.getShipAt( x, y ) != null );
-
-      // execute the attack (renders the hit/miss tile and syncs deck state)
-      targetPanel.fireAtCell( x, y );
-
-      // process the result
-      aiPlayer.processAttackResult( x, y, hit );
-
-      // if that shot sank one of the defender's ships, tell the AI so its
-      // strategy can stop hunting it and shrink its expected fleet. fireAtCell
-      // has already synced the defender's deck state, so isSunk() is current.
-      Ship struck = hit ? defender.getShipAt( x, y ) : null;
-      boolean sunk = ( struck != null && struck.isSunk() );
-      if ( sunk )
-        aiPlayer.notifyEnemyShipSunk( struck.getShipType(), x, y );
-
-      // log the result
-      String resultMessage;
-      if ( !hit )
-        resultMessage = "AI missed at " + x + "," + y + ".";
-      else if ( sunk )
-        resultMessage = "AI SANK your " + struck.getShipType() + " at " + x + "," + y + "!";
-      else
-        resultMessage = "AI hit your ship at " + x + "," + y + "!";
-      controller.logToTerminal(resultMessage);
-      
-      // check if human player has lost
-      if ( controller.getCurrentPlayer().hasLost() )
-      {
-        controller.logToTerminal( "You have been defeated by the AI!" );
-        String winner = controller.getNextPlayer().getCiv().toString();
-        
-        controller.showWinScreen( winner );
-        return;
-      }
-      
-      // in salvo mode, continue until all salvos are spent
-      if ( salvoMode )
-      {
-        salvosRemaining--;
-        if ( salvosRemaining > 0 )
-        {
-          // continue with next salvo after a delay
-          actionTimer.setInitialDelay( AI_ACTION_DELAY );
-          actionTimer.start();
-          return;
-        }
-      }
-      
-      // end turn after a delay
-      turnComplete = true;
-      actionTimer = new Timer( AI_ACTION_DELAY, ( ActionEvent e ) -> 
-      {
-        finishAITurn();
-      });
-      actionTimer.setRepeats( false );
-      actionTimer.start();
-    }
-    else
       // no valid moves, end turn
       finishAITurn();
+      return;
+    }
+
+    int x = attackCoords[0];
+    int y = attackCoords[1];
+
+    // drop a stone on the target and resolve the shot once it lands, exactly
+    // as BattlePhase does for the human's attacks
+    Point global = targetPanel.getGlobalCellPosition( x, y );
+    faller = new FallingStoneAnimation( global, controller.getDragLayerPanel() );
+    faller.startAnimation( () -> resolveAIShot( targetPanel, x, y ) );
   }
-  
+
   /**
-   * Finishes the AI turn and switches back to the human player.
+   * Resolves a landed AI shot: updates the board, feeds the result back into
+   * the AI's strategy, logs it, and either continues the salvo or schedules
+   * the end of the turn.
+   *
+   * @param targetPanel the defender's QuadrantPanel
+   * @param x           the x-coordinate of the struck cell
+   * @param y           the y-coordinate of the struck cell
+   */
+  private void resolveAIShot( QuadrantPanel targetPanel, int x, int y )
+  {
+    faller = null;
+    controller.getDragLayerPanel().repaint();
+
+    Player aiPlayer = controller.getCurrentPlayer();
+    Player defender = controller.getNextPlayer();
+
+    // A true HIT means the defender actually has a ship on this cell. We must
+    // NOT use the return of fireAtCell(): that only reports the shot was
+    // legal (it returns true for misses too), which made every valid shot
+    // read as a "hit". getShipAt is independent of fired state, so we can ask
+    // it either side of the shot.
+    boolean hit = ( defender.getShipAt( x, y ) != null );
+
+    // execute the attack (renders the hit/miss tile and syncs deck state)
+    targetPanel.fireAtCell( x, y );
+
+    // process the result
+    aiPlayer.processAttackResult( x, y, hit );
+
+    // if that shot sank one of the defender's ships, tell the AI so its
+    // strategy can stop hunting it and shrink its expected fleet. fireAtCell
+    // has already synced the defender's deck state, so isSunk() is current.
+    Ship struck = hit ? defender.getShipAt( x, y ) : null;
+    boolean sunk = ( struck != null && struck.isSunk() );
+    if ( sunk )
+      aiPlayer.notifyEnemyShipSunk( struck.getShipType(), x, y );
+
+    // log the result
+    String resultMessage;
+    if ( !hit )
+      resultMessage = "AI missed at " + x + "," + y + ".";
+    else if ( sunk )
+      resultMessage = "AI SANK the " + struck.getShipType() + " at " + x + "," + y + "!";
+    else
+      resultMessage = "AI hit a ship at " + x + "," + y + "!";
+    controller.logToTerminal( resultMessage );
+
+    // check if the defender has lost
+    if ( defender.hasLost() )
+    {
+      controller.logToTerminal( "The " + defender.getCiv() + " fleet is vanquished!" );
+      controller.showWinScreen( aiPlayer.getCiv().toString() );
+      return;
+    }
+
+    // in salvo mode, continue until all salvos are spent
+    if ( salvoMode )
+    {
+      salvosRemaining--;
+      if ( salvosRemaining > 0 )
+      {
+        // continue with the next salvo after a delay
+        actionTimer = new Timer( AI_ACTION_DELAY, ( ActionEvent e ) ->
+        {
+          performAIAction();
+        });
+        actionTimer.setRepeats( false );
+        actionTimer.start();
+        return;
+      }
+    }
+
+    // end turn after a delay
+    actionTimer = new Timer( AI_ACTION_DELAY, ( ActionEvent e ) ->
+    {
+      finishAITurn();
+    });
+    actionTimer.setRepeats( false );
+    actionTimer.start();
+  }
+
+  /**
+   * Finishes the AI turn and advances the game. The handoff is automatic in
+   * every case: to the human in a solo game, or straight to the other AI in
+   * a spectated match. switchTurns() itself knows no curtain is needed when
+   * an AI is involved.
    */
   private void finishAITurn()
   {
-    // Only a true AI-vs-AI spectator game (no humans at all) advances
-    // automatically. ANY game with a human -- including single-player vs AI --
-    // hands control back exactly as before: light the turn flag and wait for a
-    // click. Gating on the human count avoids touching the single-player flow.
-    if ( controller.getBoard().isSpectating() )
-    {
-      controller.logToTerminal( "AI turn complete." );
-      controller.switchTurns();
-    }
-    else
-    {
-      controller.logToTerminal( "AI turn complete. Your turn now." );
-      controller.logToTerminal( BattlePhase.NTPROMPT );
-      controller.getTerminalPanel().setTurnButtonEnabled( true );
-    }
+    controller.logToTerminal( "AI turn complete." );
+    controller.switchTurns();
   }
-  
+
   /**
    * Cleans up resources when the phase ends.
    */
@@ -205,22 +224,31 @@ public class AITurnPhase extends AbstractGamePhase
   public void cleanup()
   {
     if ( actionTimer != null && actionTimer.isRunning() )
-    {
       actionTimer.stop();
+
+    if ( faller != null )
+    {
+      faller.stop();
+      faller = null;
     }
   }
-  
+
   /**
    * Updates the phase state.
    * Not actively used as AI actions are timer-driven.
    */
   @Override
   public void update() {}
-  
+
   /**
-   * Renders any custom visuals for the phase.
-   * Not needed for AITurnPhase.
+   * Renders the falling stone for the AI's shot in flight.
+   *
+   * @param g the Graphics object used for rendering
    */
   @Override
-  public void render( Graphics g ) {}
+  public void render( Graphics g )
+  {
+    if ( faller != null )
+      faller.draw( g );
+  }
 }

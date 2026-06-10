@@ -291,23 +291,41 @@ public class GameController extends JLayeredPane implements QuadrantListener
   }
   
   /**
-   * Gets the current player's QuadrantPanel.
+   * Gets the current player's QuadrantPanel, resolved by who owns the panel
+   * rather than by which screen slot it occupies. In hot-seat games the
+   * bottom (revealed) slot always belongs to the current player, but in solo
+   * games the human keeps the bottom slot even during the AI's turn -- so
+   * slot position alone cannot identify whose panel is whose.
    *
    * @return the QuadrantPanel instance for the current player
    */
   public QuadrantPanel getCurrentQuadrantPanel()
   {
-    return boardPanel.getFriendlyPanel();
+    return getPanelOwnedBy( current );
   }
-  
+
   /**
-   * Gets the next player's QuadrantPanel.
+   * Gets the next player's QuadrantPanel, resolved by owner.
    *
    * @return the QuadrantPanel instance for the next player
    */
   public QuadrantPanel getNextQuadrantPanel()
   {
-    return boardPanel.getEnemyPanel();
+    return getPanelOwnedBy( board.getNextPlayer() );
+  }
+
+  /**
+   * Finds the QuadrantPanel owned by the given player, regardless of whether
+   * it currently sits in the friendly (bottom, revealed) or enemy (top,
+   * hidden) slot of the BoardPanel.
+   *
+   * @param p the player whose panel to find
+   * @return the panel owned by that player
+   */
+  private QuadrantPanel getPanelOwnedBy( Player p )
+  {
+    QuadrantPanel friendly = boardPanel.getFriendlyPanel();
+    return ( friendly.getOwner() == p ) ? friendly : boardPanel.getEnemyPanel();
   }
   
   /**
@@ -610,25 +628,26 @@ public class GameController extends JLayeredPane implements QuadrantListener
   public void switchTurns()
   {
     currentPhase.cleanup();
+    terminal.setTurnButtonEnabled( false );
 
-    // Drop the curtain only when handing off to a human (hot-seat). When the
-    // next actor is an AI -- which is always the case in a spectated AI-vs-AI
-    // match -- no curtain is shown and the turn advances immediately.
-    boolean nextPlayerIsAI = getNextPlayer().isAutonomous();
+    // The curtain exists solely to hide two humans' fleets from each other
+    // during a hot-seat handoff. Any game involving an AI on either side has
+    // no secrecy to protect between turns, so the handoff is immediate.
+    boolean hotSeat = board.getHumanCount() == 2;
 
-    if ( !nextPlayerIsAI )
+    if ( hotSeat )
       dropCurtain();
 
     Timer turnSwitchTimer;
-    turnSwitchTimer = new Timer( nextPlayerIsAI ? 0 : getCurtainTime(), (ActionEvent e) ->
+    turnSwitchTimer = new Timer( hotSeat ? getCurtainTime() : 0, (ActionEvent e) ->
     {
       swapStateAndUI();
-            
+
       // Use the appropriate next phase
       GamePhase nextPhase = PhaseFactory.createNextTurnPhase( this, salvoMode );
       setPhase( nextPhase );
     });
-    
+
     turnSwitchTimer.setRepeats( false );
     turnSwitchTimer.start();
   }
@@ -673,23 +692,13 @@ public class GameController extends JLayeredPane implements QuadrantListener
     // Update the turn indicator
     terminal.updateTurnButtonIcon();
 
-    // Maintain the panel arrangement the battle phases rely on. This keeps the
-    // original, proven civ-agnostic logic and only generalises the branch by
-    // how many humans are playing:
+    // Only hot-seat games rearrange the screen: the bottom slot is the
+    // revealed one, so it must follow whichever human is acting. With at most
+    // one human the arrangement never changes -- the lone human (or, when
+    // spectating, the Britons) keeps the bottom slot for the whole game, and
+    // the phases resolve panels by owner rather than by slot.
     if ( board.getHumanCount() == 2 )
-    {
-      // hot seat: swap every turn so the active player sees their own board
       boardPanel.swapPanels();
-    }
-    else
-    {
-      // one human (on either civilization) or AI-vs-AI spectating: swap
-      // whenever the new current player is an AI. With one human this keeps the
-      // human's board at the bottom; while spectating (current is always an AI)
-      // it swaps every turn so the bottom panel tracks the current player.
-      if ( current.isAutonomous() )
-        boardPanel.swapPanels();
-    }
   }
   
   /**

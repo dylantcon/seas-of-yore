@@ -62,13 +62,22 @@ public class PhaseFactory
       return createShipPlacementPhase();
   }
   
+  /**
+   * Creates the phase for the turn that is about to begin. Called after the
+   * board has already switched turns, so the phase is chosen by who the NEW
+   * current player is: the phase always belongs to the player acting in it.
+   *
+   * @param g the GameController managing the game
+   * @param s true if the game is in Salvo mode; false otherwise
+   * @return the phase in which the new current player acts
+   */
   public static GamePhase createNextTurnPhase( GameController g, boolean s )
   {
-    Player nextPlayer = g.getNextPlayer();
-    
+    Player actor = g.getCurrentPlayer();
+
     if ( g.getBoard().isPlacementFinal() )
     {
-      if ( nextPlayer.isAutonomous() )
+      if ( actor.isAutonomous() )
         return createAITurnPhase( s );
       else
         return createBattlePhase( s );
