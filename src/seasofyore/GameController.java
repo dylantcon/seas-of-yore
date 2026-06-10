@@ -696,9 +696,17 @@ public class GameController extends JLayeredPane implements QuadrantListener
     boolean defeat = ( localPlayer != null && localPlayer.getCiv() != winner );
     Civilization featured = defeat ? localPlayer.getCiv() : winner;
 
+    // the featured commander's spoken name: an AI's tavern nickname, or the
+    // titled name a human signed the muster roll with
+    Player featuredPlayer = ( board.getBritons().getCiv() == featured )
+                          ? board.getBritons() : board.getFranks();
+    PlayerType featuredType = board.getPlayerType( featured );
+    String featuredName = featuredType.isAI() ? featuredType.getNickname()
+                                              : featuredPlayer.getTitledName();
+
     winScreen = new WinScreenPanel
     (
-      featured, defeat, ( ActionEvent e ) -> {
+      featured, featuredName, defeat, ( ActionEvent e ) -> {
         // play again actionPerformed listener
         remove( winScreen );
         this.startGame();

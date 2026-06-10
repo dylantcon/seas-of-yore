@@ -74,8 +74,9 @@ public class ShipPlacementPhase extends AbstractGamePhase
     controller.getBoardPanel().getFriendlyPanel().enableCellInteraction();
     controller.getBoardPanel().getEnemyPanel().disableCellInteraction();
     
-    Civilization c = controller.getCurrentPlayerCivilization();
-    controller.logToTerminal( c + ", place your ships on the board." );
+    // greet the player by the name they signed the muster roll with
+    controller.logToTerminal( controller.getCurrentPlayer().getTitledName()
+                            + ", place your ships on the board." );
     controller.logToTerminal( intro );
   }
   

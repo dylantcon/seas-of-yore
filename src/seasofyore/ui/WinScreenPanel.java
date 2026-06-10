@@ -60,15 +60,17 @@ public class WinScreenPanel extends JLayeredPane
   /**
    * Constructs the end screen for one outcome.
    *
-   * @param featured the civilization whose flag the scene features: the
-   *                 celebrated winner, or -- in defeat -- the fallen player
-   * @param defeat   true to stage the storm and burning flag; false for the
-   *                 victory celebration
-   * @param rtn      listener for the return-to-menu button
-   * @param quit     listener for the quit button
+   * @param featured     the civilization whose flag the scene features: the
+   *                     celebrated winner, or -- in defeat -- the fallen player
+   * @param featuredName the featured commander's spoken name (a human's
+   *                     titled name, or an AI's tavern nickname)
+   * @param defeat       true to stage the storm and burning flag; false for
+   *                     the victory celebration
+   * @param rtn          listener for the return-to-menu button
+   * @param quit         listener for the quit button
    */
-  public WinScreenPanel( Civilization featured, boolean defeat,
-                         ActionListener rtn, ActionListener quit )
+  public WinScreenPanel( Civilization featured, String featuredName,
+                         boolean defeat, ActionListener rtn, ActionListener quit )
   {
     ChoppySeasPanel seas = new ChoppySeasPanel();
     if ( defeat )
@@ -81,8 +83,9 @@ public class WinScreenPanel extends JLayeredPane
 
     String headline = defeat ? "DEFEAT..." : "VICTORY!";
     String story = defeat
-                 ? "The " + featured + " fleet rests beneath the waves..."
-                 : "The " + featured + " rule the seas! Thy foe is vanquished!";
+                 ? featuredName + "'s fleet rests beneath the waves..."
+                 : featuredName + " rules the seas! The " + featured
+                   + " banner flies high!";
 
     JLabel headlineLabel = makeChipLabel( headline,
         new Font( "Serif", Font.BOLD | Font.ITALIC, 54 ),

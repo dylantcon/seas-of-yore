@@ -66,6 +66,10 @@ public class SeasOfYore
     // Battle-setup controls (read when the battle is launched)
     private JComboBox<PlayerType> britonsSelector;
     private JComboBox<PlayerType> franksSelector;
+    private javax.swing.JTextField britonsNameField;
+    private javax.swing.JTextField franksNameField;
+    private JPanel britonsNameRow;
+    private JPanel franksNameRow;
     private JButton classicModeButton;
     private JButton salvoModeButton;
     private JButton stoneToggleButton;
@@ -233,6 +237,14 @@ public class SeasOfYore
         britonsSelector.setSelectedItem(PlayerType.HUMAN);
         franksSelector.setSelectedItem(PlayerType.AI_MEDIUM);
 
+        // human commanders sign the muster roll; the game imposes the
+        // "Commander <name>" honorific wherever it speaks of them. The rows
+        // only appear for sides a human actually commands.
+        britonsNameField = makeNameField("Arthur");
+        franksNameField = makeNameField("Charlemagne");
+        britonsNameRow = makeFieldRow("Signed, Commander", britonsNameField);
+        franksNameRow = makeFieldRow("Signed, Commander", franksNameField);
+
         // rules of engagement: a two-plank toggle instead of radio buttons
         classicModeButton = makeDeckToggle("Classic", 120);
         salvoModeButton = makeDeckToggle("SALVO", 120);
@@ -264,18 +276,28 @@ public class SeasOfYore
             BorderFactory.createEmptyBorder(8, 12, 8, 12)));
 
         britonsSelector.addActionListener(e ->
-            refreshCommanderLore((PlayerType) britonsSelector.getSelectedItem()));
+        {
+            refreshCommanderLore((PlayerType) britonsSelector.getSelectedItem());
+            refreshNameRows();
+        });
         franksSelector.addActionListener(e ->
-            refreshCommanderLore((PlayerType) franksSelector.getSelectedItem()));
+        {
+            refreshCommanderLore((PlayerType) franksSelector.getSelectedItem());
+            refreshNameRows();
+        });
 
+        Insets tightP = new Insets(0, 20, 6, 20); // name rows hug their selector
         gblAdd(deck, makeFieldRow("Britons (Player 1):", britonsSelector), 0, STD_P);
-        gblAdd(deck, makeFieldRow("Franks (Player 2):", franksSelector), 1, STD_P);
-        gblAdd(deck, modeRow, 2, STD_P);
-        gblAdd(deck, stoneToggleButton, 3, STD_P);
-        gblAdd(deck, commanderLoreLabel, 4, STD_P);
+        gblAdd(deck, britonsNameRow, 1, tightP);
+        gblAdd(deck, makeFieldRow("Franks (Player 2):", franksSelector), 2, STD_P);
+        gblAdd(deck, franksNameRow, 3, tightP);
+        gblAdd(deck, modeRow, 4, STD_P);
+        gblAdd(deck, stoneToggleButton, 5, STD_P);
+        gblAdd(deck, commanderLoreLabel, 6, STD_P);
 
         refreshModeToggle();
         refreshStoneToggle();
+        refreshNameRows();
         refreshCommanderLore((PlayerType) franksSelector.getSelectedItem());
 
         JButton beginButton = createMenuButton("Begin Battle", Color.WHITE, SEA_BLUE);
@@ -322,6 +344,48 @@ public class SeasOfYore
         label.setFont(new Font("Serif", Font.BOLD, 18));
         label.setForeground(PARCHMENT);
         return label;
+    }
+
+    /**
+     * Builds a name field styled as deck furniture: parchment page, ink
+     * script, tarred rim.
+     *
+     * @param defaultName the prefilled name
+     * @return the styled text field
+     */
+    private javax.swing.JTextField makeNameField(String defaultName)
+    {
+        javax.swing.JTextField field = new javax.swing.JTextField(defaultName, 10);
+        field.setFont(new Font("Serif", Font.BOLD, 16));
+        field.setForeground(INK);
+        field.setBackground(PARCHMENT);
+        field.setCaretColor(INK);
+        field.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(WOOD_EDGE, 2),
+            BorderFactory.createEmptyBorder(2, 8, 2, 8)));
+        return field;
+    }
+
+    /**
+     * Shows each side's muster-roll row only while a human commands it; AI
+     * commanders already have names the harbour-folk gave them.
+     */
+    private void refreshNameRows()
+    {
+        britonsNameRow.setVisible(britonsSelector.getSelectedItem() == PlayerType.HUMAN);
+        franksNameRow.setVisible(franksSelector.getSelectedItem() == PlayerType.HUMAN);
+    }
+
+    /**
+     * Reads a name field, returning the trimmed name or null when blank.
+     *
+     * @param field the field to read
+     * @return the trimmed name, or null
+     */
+    private String readName(javax.swing.JTextField field)
+    {
+        String text = field.getText() == null ? "" : field.getText().trim();
+        return text.isEmpty() ? null : text;
     }
 
     /**
@@ -452,12 +516,27 @@ public class SeasOfYore
         PlayerType britons = (PlayerType) britonsSelector.getSelectedItem();
         PlayerType franks = (PlayerType) franksSelector.getSelectedItem();
 
+        // every human commander must sign the muster roll -- any name will
+        // do, so long as there IS one
+        String britonsName = readName(britonsNameField);
+        String franksName = readName(franksNameField);
+        if ((britons == PlayerType.HUMAN && britonsName == null)
+         || (franks == PlayerType.HUMAN && franksName == null))
+        {
+            javax.swing.JOptionPane.showMessageDialog(mainFrame,
+                "Every mortal commander must sign the muster roll -- "
+                + "a name is required.",
+                "Unsigned muster roll",
+                javax.swing.JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
         for (Component comp : mainPanel.getComponents())
             if (comp instanceof GameController)
                 mainPanel.remove(comp);
 
-        MatchConfig config = new MatchConfig(britons, franks, null, null,
-            salvoSelected, stoneAnimationsEnabled);
+        MatchConfig config = new MatchConfig(britons, franks,
+            britonsName, franksName, salvoSelected, stoneAnimationsEnabled);
 
         GameController controller = controllerFactory.createController(
             config, () -> cardLayout.show(mainPanel, "TitleScreen"));

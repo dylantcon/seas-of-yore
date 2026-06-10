@@ -373,7 +373,8 @@ public class TerminalPanel extends JPanel
 
   /**
    * Rebuilds the status line from the current player's civilization and the
-   * kind of commander steering it.
+   * commander steering it: AI tiers by their tavern nickname and difficulty,
+   * humans by the titled name they signed the muster roll with.
    */
   private void refreshStatusLine()
   {
@@ -382,7 +383,7 @@ public class TerminalPanel extends JPanel
 
     String commander = type.isAI()
                      ? type.getNickname() + "  [" + type.getLabel() + "]"
-                     : type.getNickname();
+                     : controller.getCurrentPlayer().getTitledName();
 
     statusLabel.setText( civ + "  ·  " + commander );
   }
