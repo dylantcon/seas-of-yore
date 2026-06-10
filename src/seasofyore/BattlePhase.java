@@ -7,7 +7,7 @@ package seasofyore;
 import seasofyore.ui.QuadrantPanel;
 import seasofyore.ui.FallingStoneAnimation;
 import seasofyore.ui.TerminalPanel;
-import seasofyore.core.Ship;
+import seasofyore.core.ShipType;
 import java.awt.Graphics;
 import java.awt.Point;
 
@@ -144,10 +144,12 @@ public class BattlePhase extends AbstractGamePhase
   }
 
   /**
-   * Resolves a landed shot: updates the board, logs the outcome, and either
-   * ends the game or hands the player the flag to pass the turn.
+   * Resolves a landed shot through the match handler -- the seam that
+   * knows whether the defender's fleet is in this JVM or across the
+   * water. The verdict callback logs the outcome and either ends the
+   * game or hands the player the flag to pass the turn.
    *
-   * @param quadrantPanel the panel fired upon
+   * @param quadrantPanel the panel fired upon (the handler marks it)
    * @param x             the x-coordinate of the struck cell
    * @param y             the y-coordinate of the struck cell
    */
@@ -155,20 +157,42 @@ public class BattlePhase extends AbstractGamePhase
   {
     controller.getBoard().recordShotFired(); // survives a mid-turn save
 
-    boolean hit = quadrantPanel.fireAtCell( x, y );
-    String message = hit ? getHitIdentifier( x, y ) : FIREMISS;
-    // log resultant message in terminal
-    controller.logToTerminal( message );
-
-    if ( controller.getNextPlayer().hasLost() )
+    controller.getMatchHandler().resolveOutgoingShot( x, y,
+        ( hit, sunkType, defenderDefeated ) ->
     {
-      controller.logToTerminal( VICTORY );
-      controller.showWinScreen( controller.getCurrentPlayerCivilization() );
-      return;
-    }
-    controller.logToTerminal( NTPROMPT );
-    controller.getNextQuadrantPanel().disableCellInteraction();
-    controller.getTerminalPanel().setTurnButtonEnabled( true );
+      controller.logToTerminal( buildShotMessage( hit, sunkType ) );
+
+      if ( defenderDefeated )
+      {
+        controller.logToTerminal( VICTORY );
+        controller.showWinScreen( controller.getCurrentPlayerCivilization() );
+        return;
+      }
+      controller.logToTerminal( NTPROMPT );
+      controller.getNextQuadrantPanel().disableCellInteraction();
+      controller.getTerminalPanel().setTurnButtonEnabled( true );
+    });
+  }
+
+  /**
+   * The message a shot's verdict earns. A mere hit names no ship -- the
+   * defender only ever announces a type when it sinks, which is both the
+   * networked protocol's rule and the honest amount of intelligence a
+   * commander should get.
+   *
+   * @param hit      whether a ship was struck
+   * @param sunkType the ship type this shot sank, or null
+   * @return the styled terminal message
+   */
+  protected String buildShotMessage( boolean hit, ShipType sunkType )
+  {
+    if ( !hit )
+      return FIREMISS;
+    if ( sunkType != null )
+      return TerminalPanel.RED + TerminalPanel.BOLD
+           + "Thou hast SUNK the enemy's " + sunkType + "!"
+           + TerminalPanel.RESET;
+    return FIREHIT;
   }
 
   /**
@@ -224,27 +248,5 @@ public class BattlePhase extends AbstractGamePhase
     controller.getNextQuadrantPanel().disableCellInteraction();
   }
   
-  /**
-   * Gets a message identifying the result of hitting a cell.
-   * Indicates whether a ship was hit or sunk.
-   *
-   * @param x the x-coordinate of the hit cell
-   * @param y the y-coordinate of the hit cell
-   * @return a message describing the hit or sunk status of the target
-   */
-  protected String getHitIdentifier( int x, int y )
-  {
-    Ship hitShip = targeted.getOwner().getShipAt( x, y );
-    if ( hitShip != null )
-    {
-      boolean isSunk = hitShip.isSunk();
-      return isSunk
-      ? TerminalPanel.RED + TerminalPanel.BOLD + "Thou hast SUNK the enemy's "
-        + hitShip.getShipType() + "!" + TerminalPanel.RESET
-      : TerminalPanel.RED + "Thou hast HIT the enemy's "
-        + hitShip.getShipType() + "!" + TerminalPanel.RESET;
-    }
-    return FIREMISS;
-  }
 }
 

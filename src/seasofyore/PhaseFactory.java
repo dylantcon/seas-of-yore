@@ -77,10 +77,11 @@ public class PhaseFactory
 
     if ( g.getBoard().isPlacementFinal() )
     {
+      if ( actor.isRemote() )
+        return new RemoteTurnPhase();
       if ( actor.isAutonomous() )
         return createAITurnPhase( s );
-      else
-        return createBattlePhase( s );
+      return createBattlePhase( s );
     }
     else
       return createShipPlacementPhase();

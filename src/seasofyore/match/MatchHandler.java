@@ -2,6 +2,7 @@ package seasofyore.match;
 
 import seasofyore.GameController;
 import seasofyore.core.Player;
+import seasofyore.core.ShipType;
 
 /**
  * The seam between the game and the question "where are the players?". A
@@ -72,10 +73,48 @@ public interface MatchHandler
   boolean isLocalTurn();
 
   /**
-   * Notifies the handler that the active turn is handing off. Networked
-   * handlers forward the turn across the wire here.
+   * The outcome of one outgoing shot, delivered to the firing phase. The
+   * callback may run synchronously (offline: the defender is in this JVM)
+   * or later (networked: the result must cross the water first); phases
+   * are written for the asynchronous case and get the synchronous one for
+   * free.
    */
-  void onTurnEnded();
+  interface ShotOutcome
+  {
+    /**
+     * The defender's verdict on the shot.
+     *
+     * @param hit              whether a ship was struck
+     * @param sunkType         the type of the ship this shot sank, or
+     *                         null (a mere hit reveals nothing more)
+     * @param defenderDefeated whether the defender's whole fleet is gone
+     */
+    void onResolved( boolean hit, ShipType sunkType, boolean defenderDefeated );
+  }
+
+  /**
+   * Resolves one shot by the local current player at the enemy. The
+   * handler owns the question "who knows where the enemy's ships are":
+   * offline, this JVM does; networked, only the other end does. The
+   * handler applies the hit/miss mark to the enemy's quadrant before the
+   * callback fires.
+   *
+   * @param x       the target x-coordinate
+   * @param y       the target y-coordinate
+   * @param outcome where to deliver the verdict
+   */
+  void resolveOutgoingShot( int x, int y, ShotOutcome outcome );
+
+  /**
+   * Offers the handler the turn handoff before the controller performs
+   * it. Offline handlers decline; networked handlers use it to exchange
+   * fleet-ready declarations during setup (taking over the transition)
+   * and to relay battle handoffs across the wire (then declining, so both
+   * boards advance in step).
+   *
+   * @return true if the handler took over this transition entirely
+   */
+  boolean interceptTurnEnd();
 
   /**
    * Concedes the match on behalf of the local player.

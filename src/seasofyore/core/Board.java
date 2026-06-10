@@ -287,6 +287,21 @@ public class Board implements java.io.Serializable
   }
 
   /**
+   * Forces whose turn it is, clearing setup if both fleets stand placed.
+   * Networked matches use this at two seams: each end starts placement on
+   * its own local player regardless of nominal order, and battle begins on
+   * the host's civilization at both ends simultaneously.
+   *
+   * @param civ the civilization to hand the turn to
+   */
+  public void forceCurrentPlayer( Civilization civ )
+  {
+    currentPlayer = ( civ == Civilization.BRITONS ) ? britons : franks;
+    if ( isPlacementFinal() )
+      setupPhase = false;
+  }
+
+  /**
    * Records one resolved shot for the turn under way. The battle phases
    * call this as each shot lands, so the count survives a mid-turn save.
    */

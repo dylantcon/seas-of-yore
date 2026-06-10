@@ -193,6 +193,21 @@ public class GameController extends JLayeredPane implements QuadrantListener
    */
   public GameController( MatchConfig config, Runnable returnToTitle )
   {
+    this( config, new OfflineMatchHandler(), returnToTitle );
+  }
+
+  /**
+   * Constructs a GameController with an explicit locality handler -- the
+   * entry point for networked matches, whose handlers arrive already bound
+   * to an established connection.
+   *
+   * @param config        the assembled match configuration
+   * @param handler       the locality handler driving this match
+   * @param returnToTitle a Runnable to return to the title screen
+   */
+  public GameController( MatchConfig config, MatchHandler handler,
+                         Runnable returnToTitle )
+  {
     this.returnToTitle = returnToTitle;
     this.salvoMode = config.isSalvoMode();
     this.stoneAnimationsEnabled = config.useStoneAnimations();
@@ -200,7 +215,7 @@ public class GameController extends JLayeredPane implements QuadrantListener
     this.franksType = config.getFranksType();
     this.britonsName = config.getBritonsName();
     this.franksName = config.getFranksName();
-    this.matchHandler = new OfflineMatchHandler();
+    this.matchHandler = handler;
 
     startGame();
   }
@@ -467,17 +482,15 @@ public class GameController extends JLayeredPane implements QuadrantListener
 
     if ( board.isPlacementFinal() )
     {
-      // Check if current player is AI
-      if ( getCurrentPlayer().isAutonomous() )
-      {
+      // the phase belongs to whoever acts: remote, AI, or local human
+      if ( getCurrentPlayer().isRemote() )
+        phase = new RemoteTurnPhase();
+      else if ( getCurrentPlayer().isAutonomous() )
         phase = PhaseFactory.createAITurnPhase( salvoMode );
-      } 
-      else 
-      {
+      else
         phase = PhaseFactory.createBattlePhase( salvoMode );
-      }
-    } 
-    else 
+    }
+    else
     {
       phase = PhaseFactory.createShipPlacementPhase();
     }
@@ -647,7 +660,11 @@ public class GameController extends JLayeredPane implements QuadrantListener
   {
     currentPhase.cleanup();
     terminal.setTurnButtonEnabled( false );
-    matchHandler.onTurnEnded();
+
+    // the handler may take the handoff over entirely (networked setup:
+    // declaring readiness and waiting for the enemy fleet)
+    if ( matchHandler.interceptTurnEnd() )
+      return;
 
     // Whether this handoff needs the secrecy curtain is the match handler's
     // call: only two humans sharing one screen have fleets to hide from
@@ -675,6 +692,22 @@ public class GameController extends JLayeredPane implements QuadrantListener
   private void advanceTurn()
   {
     swapStateAndUI();
+    setPhase( PhaseFactory.createNextTurnPhase( this, salvoMode ) );
+  }
+
+  /**
+   * Begins the battle on the given civilization's turn -- the networked
+   * entry into combat, called by the match handler once both fleets stand
+   * placed. Both screens call this with the host's civilization, so the
+   * boards open the battle in step.
+   *
+   * @param first the civilization that fires first
+   */
+  public void beginBattleAs( Civilization first )
+  {
+    board.forceCurrentPlayer( first );
+    current = board.getCurrentPlayer();
+    terminal.updateTurnButtonIcon();
     setPhase( PhaseFactory.createNextTurnPhase( this, salvoMode ) );
   }
   

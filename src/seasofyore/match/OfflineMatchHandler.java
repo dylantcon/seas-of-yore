@@ -1,6 +1,7 @@
 package seasofyore.match;
 
 import seasofyore.core.Player;
+import seasofyore.core.Ship;
 
 /**
  * The match handler for everything played on one machine: solo against an
@@ -73,6 +74,27 @@ public final class OfflineMatchHandler extends AbstractMatchHandler
   public boolean isLocalTurn()
   {
     return true;
+  }
+
+  /**
+   * Resolves a shot entirely in this JVM: the defender's fleet is right
+   * here, so the verdict is computed, the mark applied, and the callback
+   * run synchronously.
+   */
+  @Override
+  public void resolveOutgoingShot( int x, int y, ShotOutcome outcome )
+  {
+    Player defender = controller.getNextPlayer();
+    boolean hit = ( defender.getShipAt( x, y ) != null );
+
+    // mark the cell and sync the defender's deck state
+    controller.getNextQuadrantPanel().fireAtCell( x, y );
+
+    Ship struck = hit ? defender.getShipAt( x, y ) : null;
+    boolean sunk = ( struck != null && struck.isSunk() );
+
+    outcome.onResolved( hit, sunk ? struck.getShipType() : null,
+                        defender.hasLost() );
   }
 
   /**

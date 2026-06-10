@@ -1,22 +1,32 @@
 package seasofyore.match;
 
 /**
- * Base for matches played across a local network. The LAN family will speak
- * a plain socket protocol on a well-known port -- one side hosting
- * ({@link LANServerMatchHandler}), the other dialing a host address
- * ({@link LANClientMatchHandler}) -- with no account, lobby, or relay in
- * between. What distinguishes LAN from online is discovery and trust: peers
- * find each other by address (or broadcast) and connect directly.
- * <p>
- * Not yet implemented: this layer exists so the menus, terminal, pause
- * logic, and phase system can already route around the differences.
+ * Base for matches played across a local network: the transport is a
+ * direct TCP socket -- one side listened on {@link #LAN_PORT}, the other
+ * dialed an address -- with no account, relay, or third machine involved.
+ * All behaviour lives in {@link NetworkedMatchHandler}; this layer names
+ * the transport family and its well-known port.
  *
  * @author dylan
  */
 public abstract class LANMatchHandler extends NetworkedMatchHandler
 {
   /**
-   * The well-known port the LAN protocol will use.
+   * The well-known port the LAN protocol uses.
    */
-  protected static final int LAN_PORT = 51066; // the Hundred Years' War, abridged
+  public static final int LAN_PORT = 51066; // the Hundred Years' War, abridged
+
+  /**
+   * Passes the established connection up to the engine.
+   *
+   * @param transport  the connected TCP transport
+   * @param host       whether this screen hosts the match
+   * @param localName  the local commander's name
+   * @param remoteName the remote commander's name
+   */
+  protected LANMatchHandler( MatchTransport transport, boolean host,
+                             String localName, String remoteName )
+  {
+    super( transport, host, localName, remoteName );
+  }
 }

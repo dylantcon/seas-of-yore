@@ -36,6 +36,8 @@ public class PlayerFactory
   public static Player createPlayer( PlayerType type, Civilization civ,
                                      PlayerQuadrant fQ, PlayerQuadrant eQ )
   {
+    if ( type != null && type.isRemote() )
+      return new RemotePlayer( civ, fQ, eQ );
     if ( type == null || !type.isAI() )
       return createHumanPlayer( civ, fQ, eQ );
     return createAIPlayer( civ, fQ, eQ, type.getDifficulty() );

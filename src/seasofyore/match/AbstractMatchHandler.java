@@ -39,12 +39,12 @@ public abstract class AbstractMatchHandler implements MatchHandler
   }
 
   /**
-   * Default: nothing to forward when a turn ends.
+   * Default: the handler never takes over a turn handoff.
    */
   @Override
-  public void onTurnEnded()
+  public boolean interceptTurnEnd()
   {
-    // local handoffs need no plumbing
+    return false; // local handoffs need no plumbing
   }
 
   /**

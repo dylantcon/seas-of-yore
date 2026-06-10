@@ -155,8 +155,7 @@ public class SalvoBattlePhase extends BattlePhase
 
     if ( !controller.useStoneAnimations() )
     {
-      resolveNextShot();
-      playNextAnimation(); // at most fleet-size deep; no stack to fear
+      resolveNextShot( this::playNextAnimation );
       return;
     }
 
@@ -164,40 +163,49 @@ public class SalvoBattlePhase extends BattlePhase
     faller.startAnimation( () ->
     {
       faller = null; // nullify falling animation instance
-      resolveNextShot();
       controller.getDragLayerPanel().repaint();
-      playNextAnimation();
+      resolveNextShot( this::playNextAnimation );
     });
   }
 
   /**
-   * Resolves the next queued shot: unlocks its SALVO marker, fires the cell,
-   * and logs the outcome.
+   * Resolves the next queued shot through the match handler -- which may
+   * answer immediately (offline) or once the verdict crosses the water
+   * (networked) -- then continues the volley. A killing blow ends the
+   * turn on the spot.
+   *
+   * @param onResolved how the volley continues after this shot
    */
-  private void resolveNextShot()
+  private void resolveNextShot( Runnable onResolved )
   {
     controller.getBoard().recordShotFired(); // survives a mid-turn save
 
     Point p = shotGridPointQueue.poll();
     salvoTarget.unlockCellForSalvo( p.x, p.y );
-    salvoTarget.fireAtCell( p.x, p.y );
-    controller.logToTerminal( getHitIdentifier( p.x, p.y ) );
+
+    controller.getMatchHandler().resolveOutgoingShot( p.x, p.y,
+        ( hit, sunkType, defenderDefeated ) ->
+    {
+      controller.logToTerminal( buildShotMessage( hit, sunkType ) );
+
+      if ( defenderDefeated )
+      {
+        controller.logToTerminal( VICTORY );
+        controller.showWinScreen( controller.getCurrentPlayerCivilization() );
+        return;
+      }
+      onResolved.run();
+    });
   }
 
   /**
-   * Ends the salvo turn: checks for victory, then hands the player the flag.
+   * Ends the salvo turn and hands the player the flag (defeat is caught
+   * per-shot, on the killing blow itself).
    */
   private void finishSalvo()
   {
     controller.getNextQuadrantPanel().disableCellInteraction();
     controller.logToTerminal( "SALVO turn complete!" );
-
-    if ( controller.getNextPlayer().hasLost() )
-    {
-      controller.logToTerminal( VICTORY );
-      controller.showWinScreen( controller.getCurrentPlayerCivilization() );
-      return;
-    }
     controller.logToTerminal( NTPROMPT );
     controller.getTerminalPanel().setTurnButtonEnabled( true );
   }

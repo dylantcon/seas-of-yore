@@ -43,6 +43,7 @@ public class SeasOfYore
     // SALVO), so it IS the mode selection; the old per-mode screens are gone.
     private JPanel titlePanel;
     private JPanel battleSetupPanel;
+    private JPanel multiplayerPanel;
 
     // menu spacing insets, mirroring the javarominoes menu layout: a packed
     // GridBagLayout column where the gaps come from insets, not struts
@@ -103,10 +104,12 @@ public class SeasOfYore
         // Create navigation screens
         titlePanel = createTitlePanel();
         battleSetupPanel = createBattleSetupPanel();
+        multiplayerPanel = createMultiplayerPanel();
 
         // Add screens to main panel
         mainPanel.add(titlePanel, "TitleScreen");
         mainPanel.add(battleSetupPanel, "BattleSetup");
+        mainPanel.add(multiplayerPanel, "Multiplayer");
 
         // Compose the whole menu system as a transparent stack floating over one
         // shared, self-animating "choppy seas" background -- the same idea as the
@@ -160,15 +163,14 @@ public class SeasOfYore
         // at the table until it exists.
         JButton playButton = createMenuButton("Set Sail", Color.WHITE, SEA_BLUE);
         JButton loadButton = createMenuButton("Recover a Voyage", INK, PARCHMENT);
-        JButton multiplayerButton = createMenuButton("Multiplayer (Coming Soon)",
+        JButton multiplayerButton = createMenuButton("Across the Water",
                                                      INK, PARCHMENT);
         JButton quitButton = createMenuButton("Quit to Desktop", PARCHMENT, BLOOD_RED);
-
-        multiplayerButton.setEnabled(false);
 
         // Add action listeners
         playButton.addActionListener(e -> cardLayout.show(mainPanel, "BattleSetup"));
         loadButton.addActionListener(e -> loadSavedGame());
+        multiplayerButton.addActionListener(e -> cardLayout.show(mainPanel, "Multiplayer"));
         quitButton.addActionListener(e -> System.exit(0));
 
         // Stack everything as one packed, centered column
@@ -445,6 +447,61 @@ public class SeasOfYore
     }
 
     /**
+     * Creates the multiplayer screen. The screen owns all of its own
+     * connection machinery (see MultiplayerPanel); this shell only builds
+     * the game once a connection stands.
+     *
+     * @return the multiplayer panel
+     */
+    private JPanel createMultiplayerPanel()
+    {
+        return new seasofyore.ui.MultiplayerPanel(new seasofyore.ui.MultiplayerPanel.Listener()
+        {
+            @Override
+            public void onMatchReady(seasofyore.match.MatchConnector.Connection conn,
+                                     seasofyore.match.MatchHandler handler,
+                                     String localName)
+            {
+                startNetworkedMatch(conn, handler, localName);
+            }
+
+            @Override
+            public void onBack()
+            {
+                cardLayout.show(mainPanel, "TitleScreen");
+            }
+        });
+    }
+
+    /**
+     * Builds and shows the networked game once a connection stands. The
+     * host commands the Britons; the joiner, the Franks.
+     *
+     * @param conn    the established connection
+     * @param handler the locality handler wrapping its transport
+     * @param name    the local commander's name
+     */
+    private void startNetworkedMatch(seasofyore.match.MatchConnector.Connection conn,
+                                     seasofyore.match.MatchHandler handler,
+                                     String name)
+    {
+        for (Component comp : mainPanel.getComponents())
+            if (comp instanceof GameController)
+                mainPanel.remove(comp);
+
+        MatchConfig config = conn.host
+            ? new MatchConfig(PlayerType.HUMAN, PlayerType.REMOTE,
+                              name, conn.remoteName, conn.salvo, true)
+            : new MatchConfig(PlayerType.REMOTE, PlayerType.HUMAN,
+                              conn.remoteName, name, conn.salvo, true);
+
+        GameController controller = new GameController(config, handler,
+            () -> cardLayout.show(mainPanel, "TitleScreen"));
+
+        mainPanel.add(controller, "GamePanel");
+        cardLayout.show(mainPanel, "GamePanel");
+    }
+    /**
      * Creates a combo box listing the player types (human and each AI tier),
      * rendered with their friendly labels.
      *
@@ -452,7 +509,15 @@ public class SeasOfYore
      */
     private JComboBox<PlayerType> createPlayerTypeSelector()
     {
-        JComboBox<PlayerType> box = new JComboBox<>(PlayerType.values());
+        // every locally assignable commander: REMOTE exists for networked
+        // matchmaking and is never offered here
+        java.util.List<PlayerType> assignable = new java.util.ArrayList<>();
+        for (PlayerType type : PlayerType.values())
+            if (!type.isRemote())
+                assignable.add(type);
+
+        JComboBox<PlayerType> box = new JComboBox<>(
+            assignable.toArray(new PlayerType[0]));
         box.setFont(new Font("Serif", Font.BOLD, 18));
         // dress the stock combo as deck furniture: parchment face, tarred rim
         box.setBackground(PARCHMENT);

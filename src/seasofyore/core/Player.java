@@ -336,10 +336,22 @@ public abstract class Player implements Serializable
   
   /**
    * Determines if this player requires manual input for decisions.
-   * 
+   *
    * @return true if the player makes autonomous decisions (AI); false otherwise (human)
    */
   public abstract boolean isAutonomous();
+
+  /**
+   * Whether this player sits at a different screen, with moves arriving
+   * over the wire. The phase system gives remote players a passive waiting
+   * phase rather than input or AI turns.
+   *
+   * @return true for a remote player; false for anyone at this screen
+   */
+  public boolean isRemote()
+  {
+    return false;
+  }
   
   /**
    * Randomizes the calling object's (Player) ship placement, placing all ships.

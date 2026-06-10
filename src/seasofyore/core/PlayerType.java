@@ -45,7 +45,16 @@ public enum PlayerType
     + "somethin' ancient watches from beneath the brine, an' it knows where "
     + "thy keels rest afore thou dost. No chart explains it. No fleet has "
     + "outlasted it. Face the Drowned King, an' yer name joins the myths at "
-    + "the bottom o' the sea.", AIDifficulty.EXTREME );
+    + "the bottom o' the sea.", AIDifficulty.EXTREME ),
+
+  /**
+   * A human at another screen, whose moves arrive over the wire. Never
+   * offered in the local battle-setup selectors; networked matchmaking
+   * assigns it.
+   */
+  REMOTE( "Across the Water", "Distant Commander",
+    "A mortal commander somewhere across the water, sailin' under their own "
+    + "colours. What they're plannin', only the wire knows.", null );
 
   /**
    * A human-readable label for menus.
@@ -115,11 +124,21 @@ public enum PlayerType
   /**
    * Whether this side is controlled by an AI.
    *
-   * @return true for any AI tier; false for {@link #HUMAN}
+   * @return true for any AI tier; false for humans, local or remote
    */
   public boolean isAI()
   {
-    return this != HUMAN;
+    return this != HUMAN && this != REMOTE;
+  }
+
+  /**
+   * Whether this side sits at a different screen.
+   *
+   * @return true only for {@link #REMOTE}
+   */
+  public boolean isRemote()
+  {
+    return this == REMOTE;
   }
 
   /**
