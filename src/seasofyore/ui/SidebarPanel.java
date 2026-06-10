@@ -1,11 +1,12 @@
 package seasofyore.ui;
 
-import seasofyore.core.Player;
+import seasofyore.core.Civilization;
 import seasofyore.core.Direction;
 import seasofyore.core.ShipType;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Image;
+import java.awt.Insets;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
@@ -18,6 +19,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import javax.swing.ImageIcon;
 import javax.swing.JLayeredPane;
+import javax.swing.SwingConstants;
 import javax.swing.Timer;
 import javax.swing.border.TitledBorder;
 
@@ -45,6 +47,20 @@ public class SidebarPanel extends JLayeredPane
    * A map of ship types to their corresponding slot labels.
    */
   private final Map< ShipType, JLabel > shipSlots;
+
+  /**
+   * Cache of ship sprites already scaled to a particular slot allotment,
+   * keyed by civilization, type, and pixel size. Reopening the menu or
+   * re-entering placement only rescales when the geometry actually changed.
+   */
+  private final Map< String, ImageIcon > scaledIconCache;
+
+  /**
+   * The longest ship in the fleet, in cells. The slot width is divided into
+   * this many discrete intervals so each ship's icon width can be allotted
+   * proportionally to its length.
+   */
+  private static final int MAX_LOA = computeMaxLoa();
   
   /**
    * The currently selected ship type in the sidebar.
@@ -85,11 +101,13 @@ public class SidebarPanel extends JLayeredPane
    * The width of the toggle button.
    */
   public static final int TOGGLE_BUTTON_WIDTH = 40;
-  
+
    /**
-   * The height of the toggle button.
+   * The height of the toggle button. Kept equal to the width: CustomButton
+   * stretches its icon to fill its bounds, so only a 1:1 button renders the
+   * navy icon undistorted.
    */
-  private static final int TOGGLE_BUTTON_HEIGHT = 60;
+  private static final int TOGGLE_BUTTON_HEIGHT = TOGGLE_BUTTON_WIDTH;
   
   /**
    * The number of pixels moved per step during sidebar animation.
@@ -116,6 +134,7 @@ public class SidebarPanel extends JLayeredPane
     // linked map: slots must keep the ascending insertion order used by
     // populateShipSlots, since resizeShipSlots positions them by iteration
     this.shipSlots = new LinkedHashMap< >();
+    this.scaledIconCache = new HashMap< >();
     this.selectedShip = null;
     this.activeQuadrant = null;
     this.wood = new ImageIcon( getClass().getResource( WOODPATH ) );
@@ -226,7 +245,8 @@ public class SidebarPanel extends JLayeredPane
   }
 
   /**
-   * Resizes the ship slots dynamically based on the sidebar's dimensions.
+   * Resizes the ship slots dynamically based on the sidebar's dimensions,
+   * then refits the ship icons to the new slot geometry.
    *
    * @param sbW the width of the sidebar
    * @param sbH the height of the sidebar
@@ -243,6 +263,7 @@ public class SidebarPanel extends JLayeredPane
       slot.setBounds( 10, yPos, sW, sH - 10 );
       yPos += sH;
     }
+    applyShipIcons();
     this.repaint();
   }
   
@@ -295,38 +316,110 @@ public class SidebarPanel extends JLayeredPane
 
   /**
    * Populates the ship slots in the sidebar based on the active QuadrantPanel.
+   * Slots are created bare here; their icons are fitted by applyShipIcons
+   * once the slots have real on-screen bounds to fit into.
    */
   private void populateShipSlots()
   {
     if ( activeQuadrant == null )
       return;
-    
+
     slotContainer.removeAll();
-    Player owner = activeQuadrant.getOwner();
     shipSlots.clear();
-    
+
     for ( ShipType type : ShipType.getAscendingList() )
     {
       JLabel shipSlot = new JLabel();
-      ImageIcon shipSprite = activeQuadrant.getCachedShipImage
-      (
-        owner.getCiv(),
-        type,
-        Direction.EAST
-      );
-      Image scaledImage = shipSprite.getImage().getScaledInstance
-      (
-        100,
-        30,
-        Image.SCALE_SMOOTH
-      );
-      shipSlot.setIcon( new ImageIcon( scaledImage ) );
+      shipSlot.setHorizontalAlignment( SwingConstants.LEFT );
       shipSlot.setBorder( getBorder( type ) );
       shipSlots.put( type, shipSlot );
       slotContainer.add( shipSlot );
     }
+    applyShipIcons();
     slotContainer.revalidate();
     slotContainer.repaint();
+  }
+
+  /**
+   * Fits each ship's sprite to its slot, proportional to its length: the
+   * usable slot width is divided into MAX_LOA discrete intervals, and each
+   * ship is allotted a width of one interval per cell of length, one
+   * interval tall -- so the GALLEON spans the full box while the CRAYER
+   * takes two fifths, exactly mirroring their footprints on the board.
+   * Left-aligning the icons keeps the lengths visually comparable.
+   *
+   * Runs only once the slots have positive bounds (i.e. the menu geometry
+   * is real); until then there is nothing meaningful to scale to. Scaled
+   * sprites come from a size-keyed cache, so this is cheap to call on
+   * every relayout.
+   */
+  private void applyShipIcons()
+  {
+    if ( activeQuadrant == null )
+      return;
+
+    Civilization civ = activeQuadrant.getOwner().getCiv();
+
+    for ( Map.Entry< ShipType, JLabel > entry : shipSlots.entrySet() )
+    {
+      ShipType type = entry.getKey();
+      JLabel slot = entry.getValue();
+
+      Insets ins = slot.getInsets(); // the TitledBorder eats into the box
+      int availW = slot.getWidth() - ins.left - ins.right;
+      int availH = slot.getHeight() - ins.top - ins.bottom;
+
+      if ( availW <= 0 || availH <= 0 )
+        continue; // menu not laid out yet; the next resize will fit us
+
+      int interval = availW / MAX_LOA;
+      int iconW = interval * type.getLength();
+      int iconH = Math.min( interval, availH ); // ships are one cell tall
+
+      if ( iconW <= 0 || iconH <= 0 )
+        continue;
+
+      slot.setIcon( getScaledShipIcon( civ, type, iconW, iconH ) );
+    }
+  }
+
+  /**
+   * Returns the EAST-facing sprite for a ship scaled to the given size,
+   * consulting the cache first. The unscaled sprite itself is already
+   * cached by the QuadrantPanel; this layer caches the slot-sized rescales.
+   *
+   * @param civ the civilization whose sprite sheet to use
+   * @param t   the ship type
+   * @param w   the target width in pixels
+   * @param h   the target height in pixels
+   * @return the scaled, cached ImageIcon
+   */
+  private ImageIcon getScaledShipIcon( Civilization civ, ShipType t, int w, int h )
+  {
+    String key = civ + ":" + t + ":" + w + "x" + h;
+    ImageIcon scaled = scaledIconCache.get( key );
+
+    if ( scaled == null )
+    {
+      ImageIcon sprite = activeQuadrant.getCachedShipImage( civ, t, Direction.EAST );
+      Image image = sprite.getImage().getScaledInstance( w, h, Image.SCALE_SMOOTH );
+      scaled = new ImageIcon( image );
+      scaledIconCache.put( key, scaled );
+    }
+    return scaled;
+  }
+
+  /**
+   * Finds the length of the longest ship in the fleet, in cells.
+   *
+   * @return the maximum ship length
+   */
+  private static int computeMaxLoa()
+  {
+    int max = 1;
+    for ( ShipType t : ShipType.values() )
+      max = Math.max( max, t.getLength() );
+    return max;
   }
   
   /**
