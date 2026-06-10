@@ -98,59 +98,78 @@ public class SalvoBattlePhase extends BattlePhase
     salvoTarget.lockCellForSALVO( x, y );
     shotGridPointQueue.add( new Point( x, y ) );
     shotsRemaining--;
-    FallingStoneAnimation stone;
-    
-    // get global position of the cell in the dragLayerPanel
-    Point global = salvoTarget.getGlobalCellPosition( x, y );
-    stone = new FallingStoneAnimation( global, controller.getDragLayerPanel() );
-    animationQueue.add( stone );
-    
+
+    if ( controller.useStoneAnimations() )
+    {
+      // get global position of the cell in the dragLayerPanel
+      Point global = salvoTarget.getGlobalCellPosition( x, y );
+      animationQueue.add(
+          new FallingStoneAnimation( global, controller.getDragLayerPanel() ) );
+    }
+
     if ( shotsRemaining == 0 )
       playNextAnimation();
   }
-  
+
   /**
-   * Plays the next animation in the queue.
-   * Resolves the shot once the animation is complete and logs the result.
-   * If the opponent has lost, displays the victory screen. Otherwise, continues 
-   * to the next animation.
+   * Resolves the queued salvo, shot by shot. With stone animations on, each
+   * shot rides its stone and the next launches when it lands; with them off,
+   * the whole volley resolves instantly. Either way the turn finishes
+   * through {@link #finishSalvo()} once the queue runs dry.
    */
   private void playNextAnimation()
   {
-    if ( !animationQueue.isEmpty() )
+    if ( shotGridPointQueue.isEmpty() )
     {
-      faller = animationQueue.poll();
-      faller.startAnimation( () ->
-      {
-        Point p = shotGridPointQueue.poll();
-        salvoTarget.unlockCellForSalvo( p.x, p.y );
-        salvoTarget.fireAtCell( p.x, p.y );
-        String message = getHitIdentifier( p.x, p.y );
-        // get hit identifier message, then
-        // log resultant message in terminal
-        controller.logToTerminal( message );
-        faller = null; // nullify falling animation instance
-       
-        controller.getDragLayerPanel().repaint();
-        
-        playNextAnimation();
-        controller.getDragLayerPanel().repaint();
-      });
+      finishSalvo();
+      return;
     }
-    else
+
+    if ( !controller.useStoneAnimations() )
     {
-      controller.getNextQuadrantPanel().disableCellInteraction();
-      controller.logToTerminal( "SALVO turn complete!" );
-      
-      if ( controller.getNextPlayer().hasLost() )
-      {
-        controller.logToTerminal( VICTORY );
-        controller.showWinScreen( controller.getCurrentPlayerCivilization() );
-        return;
-      }
-      controller.logToTerminal( NTPROMPT );
-      controller.getTerminalPanel().setTurnButtonEnabled( true );
+      resolveNextShot();
+      playNextAnimation(); // at most fleet-size deep; no stack to fear
+      return;
     }
+
+    faller = animationQueue.poll();
+    faller.startAnimation( () ->
+    {
+      faller = null; // nullify falling animation instance
+      resolveNextShot();
+      controller.getDragLayerPanel().repaint();
+      playNextAnimation();
+    });
+  }
+
+  /**
+   * Resolves the next queued shot: unlocks its SALVO marker, fires the cell,
+   * and logs the outcome.
+   */
+  private void resolveNextShot()
+  {
+    Point p = shotGridPointQueue.poll();
+    salvoTarget.unlockCellForSalvo( p.x, p.y );
+    salvoTarget.fireAtCell( p.x, p.y );
+    controller.logToTerminal( getHitIdentifier( p.x, p.y ) );
+  }
+
+  /**
+   * Ends the salvo turn: checks for victory, then hands the player the flag.
+   */
+  private void finishSalvo()
+  {
+    controller.getNextQuadrantPanel().disableCellInteraction();
+    controller.logToTerminal( "SALVO turn complete!" );
+
+    if ( controller.getNextPlayer().hasLost() )
+    {
+      controller.logToTerminal( VICTORY );
+      controller.showWinScreen( controller.getCurrentPlayerCivilization() );
+      return;
+    }
+    controller.logToTerminal( NTPROMPT );
+    controller.getTerminalPanel().setTurnButtonEnabled( true );
   }
   
   /**

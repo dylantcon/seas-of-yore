@@ -6,6 +6,7 @@ package seasofyore;
 
 import seasofyore.ui.QuadrantPanel;
 import seasofyore.ui.FallingStoneAnimation;
+import seasofyore.ui.TerminalPanel;
 import seasofyore.core.Ship;
 import java.awt.Graphics;
 import java.awt.Point;
@@ -23,43 +24,49 @@ public class BattlePhase extends AbstractGamePhase
   /**
    * Announcement message when entering the battle phase.
    */
-  public static final String HEARYE = "*** HEAR YE, HEAR YE! THOU HAST ENTERED "
-                                  + "THE BATTLE PHASE... ***";
+  public static final String HEARYE = TerminalPanel.GOLD + TerminalPanel.BOLD
+      + "*** HEAR YE, HEAR YE! THOU HAST ENTERED THE BATTLE PHASE... ***"
+      + TerminalPanel.RESET;
   /**
    * Instructions for firing at the enemy's quadrant.
    */
-  public static final String FIREINS = "If thou wisheth to fire at thine enemy, "
-                                  + "thou must use the mouse to click a cell.";
+  public static final String FIREINS = TerminalPanel.GREY + TerminalPanel.ITALIC
+      + "If thou wisheth to fire at thine enemy, thou must use the mouse to "
+      + "click a cell." + TerminalPanel.RESET;
   /**
    * Message indicating the player has already fired on a cell.
    */
-  public static final String FIREDUPE = "Alas, thou hast already besieged this "
-                                     + "cell.";
+  public static final String FIREDUPE = TerminalPanel.GREY + TerminalPanel.ITALIC
+      + "Alas, thou hast already besieged this cell." + TerminalPanel.RESET;
   /**
    * Message indicating a successful hit.
    */
-  public static final String FIREHIT = "Huzzah, milord! A direct HIT!";
-  
+  public static final String FIREHIT = TerminalPanel.RED + TerminalPanel.BOLD
+      + "Huzzah, milord! A direct HIT!" + TerminalPanel.RESET;
+
   /**
    * Message indicating a missed shot.
    */
-  public static final String FIREMISS = "Zounds! A decisive MISS...";
-  
+  public static final String FIREMISS = TerminalPanel.BLUE
+      + "Zounds! A decisive MISS..." + TerminalPanel.RESET;
+
   /**
    * Victory announcement message.
    */
-  public static final String VICTORY = "*** VICTORY, Thou hast vanquished thy "
-                                     + "foe! ***";
+  public static final String VICTORY = TerminalPanel.GOLD + TerminalPanel.BOLD
+      + "*** VICTORY, Thou hast vanquished thy foe! ***" + TerminalPanel.RESET;
   /**
    * Prompt to pass the turn to the next player.
    */
-  public static final String NTPROMPT = "-= Click your flag to pass to next player =-";
+  public static final String NTPROMPT = TerminalPanel.GREEN + TerminalPanel.ITALIC
+      + "-= Click your flag to pass to next player =-" + TerminalPanel.RESET;
 
   /**
    * Announcement that a new turn has begun and the player may fire.
    */
-  public static final String TURNPROMPT = "'Tis thy turn! Choose a cell in "
-                                      + "thine enemy's waters.";
+  public static final String TURNPROMPT = TerminalPanel.GREEN
+      + "'Tis thy turn! Choose a cell in thine enemy's waters."
+      + TerminalPanel.RESET;
   
   /**
    * The QuadrantPanel representing the opponent's quadrant.
@@ -104,29 +111,70 @@ public class BattlePhase extends AbstractGamePhase
       controller.logToTerminal( FIREDUPE );
       return;
     }
+
+    if ( !controller.useStoneAnimations() )
+    {
+      // the player turned the show off: the shot lands instantly
+      resolveShot( quadrantPanel, x, y );
+      return;
+    }
+
     // get position of the cell relative to 'effects' layer dragLayerPanel
     Point global = targeted.getGlobalCellPosition( x, y );
     faller = new FallingStoneAnimation( global, controller.getDragLayerPanel() );
     // animation instantiated, start animation thread ( on EDT )
     faller.startAnimation( () ->
     {
-      boolean hit = quadrantPanel.fireAtCell( x, y );
-      String message = hit ? getHitIdentifier( x, y ) : FIREMISS;
-      // log resultant message in terminal
-      controller.logToTerminal( message );
       faller = null; // nullify falling animation instance
       controller.getDragLayerPanel().repaint();
-      
-      if ( controller.getNextPlayer().hasLost() )
-      {
-        controller.logToTerminal( VICTORY );
-        controller.showWinScreen( controller.getCurrentPlayerCivilization() );
-        return;
-      }
-      controller.logToTerminal( NTPROMPT );
-      controller.getNextQuadrantPanel().disableCellInteraction();
-      controller.getTerminalPanel().setTurnButtonEnabled( true );
+      resolveShot( quadrantPanel, x, y );
     });
+  }
+
+  /**
+   * Resolves a landed shot: updates the board, logs the outcome, and either
+   * ends the game or hands the player the flag to pass the turn.
+   *
+   * @param quadrantPanel the panel fired upon
+   * @param x             the x-coordinate of the struck cell
+   * @param y             the y-coordinate of the struck cell
+   */
+  private void resolveShot( QuadrantPanel quadrantPanel, int x, int y )
+  {
+    boolean hit = quadrantPanel.fireAtCell( x, y );
+    String message = hit ? getHitIdentifier( x, y ) : FIREMISS;
+    // log resultant message in terminal
+    controller.logToTerminal( message );
+
+    if ( controller.getNextPlayer().hasLost() )
+    {
+      controller.logToTerminal( VICTORY );
+      controller.showWinScreen( controller.getCurrentPlayerCivilization() );
+      return;
+    }
+    controller.logToTerminal( NTPROMPT );
+    controller.getNextQuadrantPanel().disableCellInteraction();
+    controller.getTerminalPanel().setTurnButtonEnabled( true );
+  }
+
+  /**
+   * Freezes the stone mid-fall while the game is paused.
+   */
+  @Override
+  public void pause()
+  {
+    if ( faller != null )
+      faller.pause();
+  }
+
+  /**
+   * Lets a frozen stone keep falling.
+   */
+  @Override
+  public void resume()
+  {
+    if ( faller != null )
+      faller.resume();
   }
  
   /**
@@ -177,8 +225,10 @@ public class BattlePhase extends AbstractGamePhase
     {
       boolean isSunk = hitShip.isSunk();
       return isSunk
-      ? "Thou hast SUNK the enemy's " + hitShip.getShipType() + "!"
-      : "Thou hast HIT the enemy's " + hitShip.getShipType() + "!";
+      ? TerminalPanel.RED + TerminalPanel.BOLD + "Thou hast SUNK the enemy's "
+        + hitShip.getShipType() + "!" + TerminalPanel.RESET
+      : TerminalPanel.RED + "Thou hast HIT the enemy's "
+        + hitShip.getShipType() + "!" + TerminalPanel.RESET;
     }
     return FIREMISS;
   }

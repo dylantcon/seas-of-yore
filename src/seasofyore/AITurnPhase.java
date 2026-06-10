@@ -5,9 +5,11 @@
 package seasofyore;
 
 import seasofyore.core.Player;
+import seasofyore.core.PlayerType;
 import seasofyore.core.Ship;
 import seasofyore.ui.FallingStoneAnimation;
 import seasofyore.ui.QuadrantPanel;
+import seasofyore.ui.TerminalPanel;
 import java.awt.Graphics;
 import java.awt.Point;
 import java.awt.event.ActionEvent;
@@ -75,9 +77,12 @@ public class AITurnPhase extends AbstractGamePhase
     controller.getNextQuadrantPanel().disableCellInteraction();
     controller.getTerminalPanel().setTurnButtonEnabled( false );
 
-    // display message that AI is taking its turn
+    // display message that the AI commander -- by name -- is taking its turn
     controller.announceBattleStart(); // fanfare, first battle turn only
-    controller.logToTerminal( "The enemy commander surveys thy waters..." );
+    PlayerType aiType = controller.getBoard()
+        .getPlayerType( controller.getCurrentPlayerCivilization() );
+    controller.logToTerminal( TerminalPanel.ITALIC + aiType.getNickname()
+                            + " surveys thy waters..." + TerminalPanel.RESET );
 
     // initialize salvos for SALVO mode
     if ( salvoMode )
@@ -116,6 +121,13 @@ public class AITurnPhase extends AbstractGamePhase
 
     int x = attackCoords[0];
     int y = attackCoords[1];
+
+    if ( !controller.useStoneAnimations() )
+    {
+      // the player turned the show off: the AI's shot lands instantly too
+      resolveAIShot( targetPanel, x, y );
+      return;
+    }
 
     // drop a stone on the target and resolve the shot once it lands, exactly
     // as BattlePhase does for the human's attacks
@@ -165,17 +177,23 @@ public class AITurnPhase extends AbstractGamePhase
     // log the result
     String resultMessage;
     if ( !hit )
-      resultMessage = "AI missed at " + x + "," + y + ".";
+      resultMessage = TerminalPanel.BLUE + "AI missed at " + x + "," + y + "."
+                    + TerminalPanel.RESET;
     else if ( sunk )
-      resultMessage = "AI SANK the " + struck.getShipType() + " at " + x + "," + y + "!";
+      resultMessage = TerminalPanel.RED + TerminalPanel.BOLD + "AI SANK the "
+                    + struck.getShipType() + " at " + x + "," + y + "!"
+                    + TerminalPanel.RESET;
     else
-      resultMessage = "AI hit a ship at " + x + "," + y + "!";
+      resultMessage = TerminalPanel.RED + "AI hit a ship at " + x + "," + y
+                    + "!" + TerminalPanel.RESET;
     controller.logToTerminal( resultMessage );
 
     // check if the defender has lost
     if ( defender.hasLost() )
     {
-      controller.logToTerminal( "The " + defender.getCiv() + " fleet is vanquished!" );
+      controller.logToTerminal( TerminalPanel.GOLD + TerminalPanel.BOLD
+                              + "The " + defender.getCiv()
+                              + " fleet is vanquished!" + TerminalPanel.RESET );
       controller.showWinScreen( aiPlayer.getCiv() );
       return;
     }
@@ -232,6 +250,34 @@ public class AITurnPhase extends AbstractGamePhase
       faller.stop();
       faller = null;
     }
+  }
+
+  /**
+   * Freezes the AI's turn for a game pause. At any instant exactly one
+   * driver is pending -- the action timer counting down to the next step,
+   * or a stone in flight -- and both freeze reversibly.
+   */
+  @Override
+  public void pause()
+  {
+    if ( actionTimer != null && actionTimer.isRunning() )
+      actionTimer.stop();
+
+    if ( faller != null )
+      faller.pause();
+  }
+
+  /**
+   * Resumes whichever driver was pending when the game paused: a stone in
+   * flight keeps falling, otherwise the action timer restarts its delay.
+   */
+  @Override
+  public void resume()
+  {
+    if ( faller != null )
+      faller.resume();
+    else if ( actionTimer != null )
+      actionTimer.start();
   }
 
   /**

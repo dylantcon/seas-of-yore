@@ -9,20 +9,25 @@ import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.io.File;
+import java.io.IOException;
 import javax.swing.BorderFactory;
-import javax.swing.ButtonGroup;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
+import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JLayeredPane;
 import javax.swing.JList;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JRadioButton;
 import javax.swing.SwingUtilities;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import seasofyore.core.PlayerType;
+import seasofyore.core.SavedMatch;
 import seasofyore.ui.ChoppySeasPanel;
+import seasofyore.ui.WoodPanel;
 
 /**
  * Main entry point of the program. Medieval Battleship, using Swing Components.
@@ -54,6 +59,7 @@ public class SeasOfYore
     private static final Color PARCHMENT = new Color(229, 213, 175); // aged paper
     private static final Color SEA_BLUE = new Color(24, 58, 94);     // deep water
     private static final Color BLOOD_RED = new Color(122, 24, 24);   // war banner
+    private static final Color WOOD_EDGE = new Color(43, 26, 12);    // tarred beam
 
     // fixed button footprint, as in the javarominoes menus: uniform buttons
     // read as one deliberate column instead of a ragged stack
@@ -63,8 +69,12 @@ public class SeasOfYore
     // Battle-setup controls (read when the battle is launched)
     private JComboBox<PlayerType> britonsSelector;
     private JComboBox<PlayerType> franksSelector;
-    private JRadioButton classicModeButton;
-    private JRadioButton salvoModeButton;
+    private JButton classicModeButton;
+    private JButton salvoModeButton;
+    private JButton stoneToggleButton;
+    private JLabel commanderLoreLabel;
+    private boolean salvoSelected = false;
+    private boolean stoneAnimationsEnabled = true;
 
     // Factory for creating game controllers
     private final GameControllerFactory controllerFactory;
@@ -150,6 +160,7 @@ public class SeasOfYore
         // title goes straight there; networked play keeps a (disabled) seat
         // at the table until it exists.
         JButton playButton = createMenuButton("Set Sail", Color.WHITE, SEA_BLUE);
+        JButton loadButton = createMenuButton("Recover a Voyage", INK, PARCHMENT);
         JButton multiplayerButton = createMenuButton("Multiplayer (Coming Soon)",
                                                      INK, PARCHMENT);
         JButton quitButton = createMenuButton("Quit to Desktop", PARCHMENT, BLOOD_RED);
@@ -158,6 +169,7 @@ public class SeasOfYore
 
         // Add action listeners
         playButton.addActionListener(e -> cardLayout.show(mainPanel, "BattleSetup"));
+        loadButton.addActionListener(e -> loadSavedGame());
         quitButton.addActionListener(e -> System.exit(0));
 
         // Stack everything as one packed, centered column
@@ -165,10 +177,50 @@ public class SeasOfYore
         gblAdd(panel, subtitleLabel, 1, HEADER_P);
         gblAdd(panel, new JLabel(), 2, STD_P); // breathing room before the buttons
         gblAdd(panel, playButton, 3, STD_P);
-        gblAdd(panel, multiplayerButton, 4, STD_P);
-        gblAdd(panel, quitButton, 5, STD_P);
+        gblAdd(panel, loadButton, 4, STD_P);
+        gblAdd(panel, multiplayerButton, 5, STD_P);
+        gblAdd(panel, quitButton, 6, STD_P);
 
         return panel;
+    }
+
+    /**
+     * Prompts for a saved-game file and resumes the bottled match. The save
+     * carries the whole board -- players, fleets, wounds, AI state, and whose
+     * turn it is -- so the controller picks up exactly where the log left off.
+     */
+    private void loadSavedGame()
+    {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle("Recover a voyage");
+        chooser.setFileFilter(new FileNameExtensionFilter(
+            "Seas of Yore saves (*." + SavedMatch.FILE_EXTENSION + ")",
+            SavedMatch.FILE_EXTENSION));
+
+        if (chooser.showOpenDialog(mainFrame) != JFileChooser.APPROVE_OPTION)
+            return;
+
+        File file = chooser.getSelectedFile();
+        try
+        {
+            SavedMatch saved = SavedMatch.load(file);
+
+            for (Component comp : mainPanel.getComponents())
+                if (comp instanceof GameController)
+                    mainPanel.remove(comp);
+
+            GameController controller = new GameController(saved,
+                () -> cardLayout.show(mainPanel, "TitleScreen"));
+
+            mainPanel.add(controller, "GamePanel");
+            cardLayout.show(mainPanel, "GamePanel");
+        }
+        catch (IOException | ClassNotFoundException ex)
+        {
+            JOptionPane.showMessageDialog(mainFrame,
+                "That log could not be read: " + ex.getMessage(),
+                "Load failed", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     /**
@@ -185,9 +237,15 @@ public class SeasOfYore
 
         JLabel headerLabel = makeChipLabel("Prepare for Battle",
             new Font("Serif", Font.BOLD, 40), GOLD, INK);
-        JLabel descriptionLabel = makeChipLabel(
-            "Assign each fleet to a human or an AI commander.",
-            new Font("Serif", Font.ITALIC, 16), INK, PARCHMENT);
+
+        // The configuration area is a stretch of ship's deck: the same wood
+        // texture the in-game sidebar wears, framed by tarred beams, with
+        // every control styled to sit on planks rather than in a dialog box.
+        JPanel deck = new WoodPanel();
+        deck.setLayout(new GridBagLayout());
+        deck.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(WOOD_EDGE, 5),
+            BorderFactory.createEmptyBorder(16, 26, 16, 26)));
 
         britonsSelector = createPlayerTypeSelector();
         franksSelector = createPlayerTypeSelector();
@@ -195,18 +253,50 @@ public class SeasOfYore
         britonsSelector.setSelectedItem(PlayerType.HUMAN);
         franksSelector.setSelectedItem(PlayerType.AI_MEDIUM);
 
-        classicModeButton = new JRadioButton("Classic", true);
-        salvoModeButton = new JRadioButton("SALVO");
-        styleRadio(classicModeButton);
-        styleRadio(salvoModeButton);
-        ButtonGroup modeGroup = new ButtonGroup();
-        modeGroup.add(classicModeButton);
-        modeGroup.add(salvoModeButton);
+        // rules of engagement: a two-plank toggle instead of radio buttons
+        classicModeButton = makeDeckToggle("Classic", 120);
+        salvoModeButton = makeDeckToggle("SALVO", 120);
+        classicModeButton.addActionListener(e -> { salvoSelected = false; refreshModeToggle(); });
+        salvoModeButton.addActionListener(e -> { salvoSelected = true; refreshModeToggle(); });
 
-        JPanel modeRow = new JPanel();
+        JPanel modeRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
         modeRow.setOpaque(false);
+        modeRow.add(makeDeckLabel("Rules of Engagement:"));
         modeRow.add(classicModeButton);
         modeRow.add(salvoModeButton);
+
+        // stone volleys: whether attacks ride the falling-stone animation
+        stoneToggleButton = makeDeckToggle("", 240);
+        stoneToggleButton.addActionListener(e ->
+        {
+            stoneAnimationsEnabled = !stoneAnimationsEnabled;
+            refreshStoneToggle();
+        });
+
+        // the commander's tale: lore for whichever commander was last chosen
+        commanderLoreLabel = new JLabel();
+        commanderLoreLabel.setFont(new Font("Serif", Font.ITALIC, 14));
+        commanderLoreLabel.setForeground(INK);
+        commanderLoreLabel.setBackground(PARCHMENT);
+        commanderLoreLabel.setOpaque(true);
+        commanderLoreLabel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(WOOD_EDGE, 2),
+            BorderFactory.createEmptyBorder(8, 12, 8, 12)));
+
+        britonsSelector.addActionListener(e ->
+            refreshCommanderLore((PlayerType) britonsSelector.getSelectedItem()));
+        franksSelector.addActionListener(e ->
+            refreshCommanderLore((PlayerType) franksSelector.getSelectedItem()));
+
+        gblAdd(deck, makeFieldRow("Britons (Player 1):", britonsSelector), 0, STD_P);
+        gblAdd(deck, makeFieldRow("Franks (Player 2):", franksSelector), 1, STD_P);
+        gblAdd(deck, modeRow, 2, STD_P);
+        gblAdd(deck, stoneToggleButton, 3, STD_P);
+        gblAdd(deck, commanderLoreLabel, 4, STD_P);
+
+        refreshModeToggle();
+        refreshStoneToggle();
+        refreshCommanderLore((PlayerType) franksSelector.getSelectedItem());
 
         JButton beginButton = createMenuButton("Begin Battle", Color.WHITE, SEA_BLUE);
         JButton backButton = createMenuButton("Back", INK, PARCHMENT);
@@ -214,14 +304,91 @@ public class SeasOfYore
         backButton.addActionListener(e -> cardLayout.show(mainPanel, "TitleScreen"));
 
         gblAdd(panel, headerLabel, 0, HEADER_P);
-        gblAdd(panel, descriptionLabel, 1, HEADER_P);
-        gblAdd(panel, makeFieldRow("Britons (Player 1):", britonsSelector), 2, STD_P);
-        gblAdd(panel, makeFieldRow("Franks (Player 2):", franksSelector), 3, STD_P);
-        gblAdd(panel, modeRow, 4, STD_P);
-        gblAdd(panel, beginButton, 5, STD_P);
-        gblAdd(panel, backButton, 6, BACK_P);
+        gblAdd(panel, deck, 1, STD_P);
+        gblAdd(panel, beginButton, 2, STD_P);
+        gblAdd(panel, backButton, 3, BACK_P);
 
         return panel;
+    }
+
+    /**
+     * Builds a deck-furniture toggle button: a carved plank that lights up
+     * gold when its option is in force. Selection styling is applied by the
+     * refresh methods, not here.
+     *
+     * @param text  the initial button text
+     * @param width the preferred width in pixels
+     * @return the styled toggle button
+     */
+    private JButton makeDeckToggle(String text, int width)
+    {
+        JButton button = new JButton(text);
+        button.setPreferredSize(new Dimension(width, 36));
+        button.setFont(new Font("Serif", Font.BOLD, 16));
+        button.setFocusable(false);
+        button.setBorder(BorderFactory.createLineBorder(WOOD_EDGE, 2));
+        return button;
+    }
+
+    /**
+     * Builds a label styled for the wooden deck: parchment text, no plate.
+     *
+     * @param text the label text
+     * @return the styled label
+     */
+    private JLabel makeDeckLabel(String text)
+    {
+        JLabel label = new JLabel(text);
+        label.setFont(new Font("Serif", Font.BOLD, 18));
+        label.setForeground(PARCHMENT);
+        return label;
+    }
+
+    /**
+     * Restyles the rules toggle so the chosen plank glows gold and the
+     * other recedes into the tar.
+     */
+    private void refreshModeToggle()
+    {
+        styleToggle(classicModeButton, !salvoSelected);
+        styleToggle(salvoModeButton, salvoSelected);
+    }
+
+    /**
+     * Renames and restyles the stone-volley toggle to show its state.
+     */
+    private void refreshStoneToggle()
+    {
+        stoneToggleButton.setText(
+            "Stone Volleys: " + (stoneAnimationsEnabled ? "SHOWN" : "INSTANT"));
+        styleToggle(stoneToggleButton, stoneAnimationsEnabled);
+    }
+
+    /**
+     * Applies selected/unselected deck-toggle colors to a button.
+     *
+     * @param button   the toggle to restyle
+     * @param selected whether its option is in force
+     */
+    private void styleToggle(JButton button, boolean selected)
+    {
+        button.setBackground(selected ? GOLD : WOOD_EDGE);
+        button.setForeground(selected ? INK : PARCHMENT);
+    }
+
+    /**
+     * Shows the tavern-tale for the commander most recently chosen on either
+     * side: their nickname in bold, then the description.
+     *
+     * @param type the commander type to describe
+     */
+    private void refreshCommanderLore(PlayerType type)
+    {
+        if (type == null)
+            return;
+        commanderLoreLabel.setText("<html><div style='width:360px'><b>"
+            + type.getNickname() + "</b> &mdash; " + type.getLore()
+            + "</div></html>");
     }
 
     /**
@@ -234,6 +401,11 @@ public class SeasOfYore
     {
         JComboBox<PlayerType> box = new JComboBox<>(PlayerType.values());
         box.setFont(new Font("Serif", Font.BOLD, 18));
+        // dress the stock combo as deck furniture: parchment face, tarred rim
+        box.setBackground(PARCHMENT);
+        box.setForeground(INK);
+        box.setBorder(BorderFactory.createLineBorder(WOOD_EDGE, 2));
+        box.setFocusable(false);
         box.setRenderer(new DefaultListCellRenderer()
         {
             @Override
@@ -260,24 +432,9 @@ public class SeasOfYore
     {
         JPanel row = new JPanel(new FlowLayout(FlowLayout.CENTER));
         row.setOpaque(false);
-        JLabel label = new JLabel(labelText);
-        label.setFont(new Font("Serif", Font.BOLD, 18));
-        label.setForeground(Color.WHITE);
-        row.add(label);
+        row.add(makeDeckLabel(labelText));
         row.add(control);
         return row;
-    }
-
-    /**
-     * Applies the menu's visual style to a radio button.
-     *
-     * @param button the radio button to style
-     */
-    private void styleRadio(JRadioButton button)
-    {
-        button.setFont(new Font("Serif", Font.BOLD, 18));
-        button.setForeground(Color.WHITE);
-        button.setOpaque(false);
     }
 
     /**
@@ -312,14 +469,14 @@ public class SeasOfYore
     {
         PlayerType britons = (PlayerType) britonsSelector.getSelectedItem();
         PlayerType franks = (PlayerType) franksSelector.getSelectedItem();
-        boolean salvo = salvoModeButton.isSelected();
 
         for (Component comp : mainPanel.getComponents())
             if (comp instanceof GameController)
                 mainPanel.remove(comp);
 
         GameController controller = controllerFactory.createCustomController(
-            britons, franks, salvo, () -> cardLayout.show(mainPanel, "TitleScreen"));
+            britons, franks, salvoSelected, stoneAnimationsEnabled,
+            () -> cardLayout.show(mainPanel, "TitleScreen"));
 
         String panelName = "GamePanel";
         mainPanel.add(controller, panelName);

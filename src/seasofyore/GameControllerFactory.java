@@ -72,6 +72,26 @@ public class GameControllerFactory
   public GameController createCustomController( PlayerType britonsType, PlayerType franksType,
                                                boolean salvo, Runnable returnTitle )
   {
-    return new GameController( salvo, returnTitle, britonsType, franksType );
+    return createCustomController( britonsType, franksType, salvo, true, returnTitle );
+  }
+
+  /**
+   * Creates a GameController for an arbitrary matchup with presentation
+   * preferences: any combination of human and AI tiers, Classic or Salvo
+   * rules, and the falling-stone attack animation shown or skipped.
+   *
+   * @param britonsType     the kind of player controlling the Britons
+   * @param franksType      the kind of player controlling the Franks
+   * @param salvo           true for Salvo mode; false for Classic
+   * @param stoneAnimations true to animate attacks with the falling stone
+   * @param returnTitle     callback to return to the title screen
+   * @return a configured GameController
+   */
+  public GameController createCustomController( PlayerType britonsType, PlayerType franksType,
+                                               boolean salvo, boolean stoneAnimations,
+                                               Runnable returnTitle )
+  {
+    return new GameController( salvo, returnTitle, britonsType, franksType,
+                               stoneAnimations );
   }
 }

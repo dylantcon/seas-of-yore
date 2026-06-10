@@ -65,6 +65,25 @@ public interface GamePhase
    */
   default void cleanup()
   {
-    
+
+  }
+
+  /**
+   * Freezes the phase's timers and animations while the game is paused.
+   * Phases that drive nothing time-based need not override this.
+   */
+  default void pause()
+  {
+
+  }
+
+  /**
+   * Resumes whatever {@link #pause()} froze. A phase must come back exactly
+   * where it stopped: a stone mid-fall keeps falling, a pending AI action
+   * stays pending.
+   */
+  default void resume()
+  {
+
   }
 }

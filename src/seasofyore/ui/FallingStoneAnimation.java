@@ -94,6 +94,26 @@ public class FallingStoneAnimation
         animationTimer.stop();
     }
 
+    /**
+     * Freezes the animation in place for a game pause. Unlike {@link #stop()}
+     * this is reversible: the stone keeps its position, velocity, and splash
+     * progress, ready for {@link #resume()}.
+     */
+    public void pause()
+    {
+      if ( animationTimer != null )
+        animationTimer.stop();
+    }
+
+    /**
+     * Resumes a paused animation exactly where it froze.
+     */
+    public void resume()
+    {
+      if ( animationTimer != null )
+        animationTimer.start();
+    }
+
     // whether the stone has landed and the splash ring is still expanding
     private boolean isSplashing()
     {
