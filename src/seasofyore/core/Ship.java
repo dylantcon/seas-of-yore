@@ -41,11 +41,21 @@ public class Ship
         int len = -1;
         switch ( s ) 
         {
-            case CRAYER -> len = 2;
-            case HOY -> len = 3;
-            case GALLEY -> len = 3;
-            case COG -> len = 4;
-            case GALLEON -> len = 5;
+            case CRAYER:
+                len = 2;
+                break;
+            case HOY:
+                len = 3;
+                break;
+            case GALLEY:
+                len = 3;
+                break;
+            case COG:
+                len = 4;
+                break;
+            case GALLEON:
+                len = 5;
+                break;
         }
         return len;
     }
@@ -175,13 +185,15 @@ public class Ship
      *
      * @return true if the ship is damaged; false otherwise
      */
-    public boolean isDamaged() 
+    public boolean isDamaged()
     {
-        int sum = 0;
-        for (int n : decks)
+        for (int deck : decks)
         {
-            sum += n;
+            if (deck != PlayerQuadrant.SHIP_CELL)
+            {
+                return true;
+            }
         }
-        return (sum <= 0);
+        return false;
     }
 }

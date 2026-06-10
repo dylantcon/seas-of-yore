@@ -12,7 +12,7 @@ import java.util.Random;
  * A simple AI strategy that makes random guesses for ship placement and targeting.
  * This serves as the base difficulty level for AI opponents.
  * 
- * @author [your name]
+ * @author dylan
  */
 public class RandomGuessStrategy implements AIStrategy
 {

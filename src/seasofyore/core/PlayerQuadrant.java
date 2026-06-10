@@ -272,7 +272,7 @@ public class PlayerQuadrant
      *
      * @param x the x-coordinate of the cell
      * @param y the y-coordinate of the cell
-     * @return true if the cell was successfully fired at; false otherwise
+     * @return the value stored in the cell at the given coordinates
      */
     private int getQuadrantAt( int x, int y )
     {

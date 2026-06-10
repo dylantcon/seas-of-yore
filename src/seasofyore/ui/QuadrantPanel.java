@@ -610,34 +610,30 @@ public class QuadrantPanel extends JLayeredPane
 
       switch (hg.getDirection())
       {
-          case NORTH ->
-          {
+          case NORTH:
               bounds[0] = front[0] * cellW;
               bounds[1] = front[1] * cellH;
               bounds[2] = cellW;
               bounds[3] = cellH * loa;
-          }
-          case EAST ->
-          {
+              break;
+          case EAST:
               bounds[0] = rear[0] * cellW;
               bounds[1] = rear[1] * cellH;
               bounds[2] = cellW * loa;
               bounds[3] = cellH;
-          }
-          case SOUTH ->
-          {
+              break;
+          case SOUTH:
               bounds[0] = rear[0] * cellW;
               bounds[1] = rear[1] * cellH;
               bounds[2] = cellW;
               bounds[3] = cellH * loa;
-          }
-          case WEST ->
-          {
+              break;
+          case WEST:
               bounds[0] = front[0] * cellW;
               bounds[1] = front[1] * cellH;
               bounds[2] = cellW * loa;
               bounds[3] = cellH;
-          }
+              break;
       }
       return bounds;
   }

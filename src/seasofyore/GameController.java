@@ -9,6 +9,7 @@ import seasofyore.ui.CustomButton;
 import seasofyore.core.Player;
 import seasofyore.core.Civilization;
 import seasofyore.core.PlayerQuadrant;
+import seasofyore.core.PlayerType;
 import seasofyore.core.ShipType;
 import seasofyore.core.Board;
 import java.awt.BorderLayout;
@@ -19,14 +20,12 @@ import java.awt.Point;
 import javax.swing.JLayeredPane;
 import javax.swing.JPanel;
 import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
 import javax.swing.Box;
-import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JComponent;
@@ -42,7 +41,7 @@ import javax.swing.Timer;
 public class GameController extends JLayeredPane implements QuadrantListener
 {
   /**
-   * Runnable to return to the title screen. Not configured.
+   * Runnable to return to the title screen.
    */
   private final Runnable returnToTitle;
 
@@ -50,7 +49,17 @@ public class GameController extends JLayeredPane implements QuadrantListener
    * Indicates whether the game is in Salvo mode (multi-shot turns).
    */
   private final boolean salvoMode;
+  
+  /**
+   * The kind of player controlling the Britons (human or an AI tier).
+   */
+  private PlayerType britonsType = PlayerType.HUMAN;
 
+  /**
+   * The kind of player controlling the Franks (human or an AI tier).
+   */
+  private PlayerType franksType = PlayerType.HUMAN;
+  
   /**
    * Offset width for the sidebar panel.
    */
@@ -163,7 +172,51 @@ public class GameController extends JLayeredPane implements QuadrantListener
   {
     this.returnToTitle = returnToTitle;  // keep returnToTitle thread ready
     this.salvoMode = salvo;
-    
+    // two humans (classic hot-seat)
+    this.britonsType = PlayerType.HUMAN;
+    this.franksType = PlayerType.HUMAN;
+
+    startGame();
+  }
+
+  /**
+   * Constructs a new GameController with optional AI opponent (legacy wiring:
+   * the human is always the Britons).
+   *
+   * @param salvo           true if the game is in Salvo mode; false otherwise
+   * @param returnToTitle   a Runnable to return to the title screen
+   * @param withAI          true to include an AI opponent, false for human v. human
+   * @param aiDifficulty    the difficulty setting for the AI (ignored if withAI is false)
+   */
+  public GameController( boolean salvo, Runnable returnToTitle, boolean withAI,
+  /********************/ seasofyore.core.PlayerFactory.AIDifficulty aiDifficulty )
+  {
+    this.returnToTitle = returnToTitle;
+    this.salvoMode = salvo;
+    this.britonsType = PlayerType.HUMAN;
+    this.franksType = withAI ? PlayerType.fromDifficulty( aiDifficulty ) : PlayerType.HUMAN;
+
+    startGame();
+  }
+
+  /**
+   * Constructs a new GameController for an arbitrary matchup, specifying what
+   * controls each civilization. Supports human vs human, human vs AI on either
+   * civilization, and AI vs AI spectator games, in both Classic and Salvo modes.
+   *
+   * @param salvo         true if the game is in Salvo mode; false otherwise
+   * @param returnToTitle a Runnable to return to the title screen
+   * @param britonsType   the kind of player controlling the Britons
+   * @param franksType    the kind of player controlling the Franks
+   */
+  public GameController( boolean salvo, Runnable returnToTitle,
+  /********************/ PlayerType britonsType, PlayerType franksType )
+  {
+    this.returnToTitle = returnToTitle;
+    this.salvoMode = salvo;
+    this.britonsType = ( britonsType == null ) ? PlayerType.HUMAN : britonsType;
+    this.franksType = ( franksType == null ) ? PlayerType.HUMAN : franksType;
+
     startGame();
   }
   
@@ -316,7 +369,8 @@ public class GameController extends JLayeredPane implements QuadrantListener
     this.removeAll();
     currentPhase = null;
     // initialize backend logic
-    board = new Board();
+    board = new Board( britonsType, franksType );
+    board.prepareForPlay();   // settle AI setup so only humans see placement UI
     current = board.getCurrentPlayer();
     gamePanel = new JPanel( new BorderLayout() );
     dragLayerPanel = new JPanel( null ) 
@@ -365,15 +419,30 @@ public class GameController extends JLayeredPane implements QuadrantListener
    */
   private void updatePhase()
   {
-    if ( board.isPlacementFinal() )
+    // Get appropriate phase based on game state and next player type
+    GamePhase phase;
+
+    if ( board.isPlacementFinal() ) 
     {
-      logToTerminal( BattlePhase.HEARYE );
-      logToTerminal( BattlePhase.FIREINS );
-      setPhase( getBattleMode() );
+      logToTerminal(BattlePhase.HEARYE);
+      logToTerminal(BattlePhase.FIREINS);
+
+      // Check if current player is AI
+      if ( getCurrentPlayer().isAutonomous() ) 
+      {
+        phase = PhaseFactory.createAITurnPhase( salvoMode );
+      } 
+      else 
+      {
+        phase = PhaseFactory.createBattlePhase( salvoMode );
+      }
+    } 
+    else 
+    {
+      phase = PhaseFactory.createShipPlacementPhase();
     }
-    
-    else
-      setPhase( new ShipPlacementPhase() );
+
+    setPhase( phase );
   }
   
   /**
@@ -389,16 +458,6 @@ public class GameController extends JLayeredPane implements QuadrantListener
     this.currentPhase = phase;
     currentPhase.enterPhase( this );
     repaint();
-  }
-  
-  /**
-   * Gets the appropriate BattlePhase based on game mode.
-   *
-   * @return a BattlePhase or SalvoBattlePhase instance
-   */
-  public GamePhase getBattleMode()
-  {
-    return ( salvoMode ? new SalvoBattlePhase() : new BattlePhase() );
   }
   
   /**
@@ -550,19 +609,27 @@ public class GameController extends JLayeredPane implements QuadrantListener
    */
   public void switchTurns()
   {
-    currentPhase.cleanup();    
-    dropCurtain();           // start curtainTimer with curtainClosingState
-    
+    currentPhase.cleanup();
+
+    // Drop the curtain only when handing off to a human (hot-seat). When the
+    // next actor is an AI -- which is always the case in a spectated AI-vs-AI
+    // match -- no curtain is shown and the turn advances immediately.
+    boolean nextPlayerIsAI = getNextPlayer().isAutonomous();
+
+    if ( !nextPlayerIsAI )
+      dropCurtain();
+
     Timer turnSwitchTimer;
-    turnSwitchTimer = new Timer( getCurtainTime(), ( ActionEvent e ) -> 
+    turnSwitchTimer = new Timer( nextPlayerIsAI ? 0 : getCurtainTime(), (ActionEvent e) ->
     {
       swapStateAndUI();
-      updatePhase();
-      
-      terminal.updateTurnButtonIcon();
+            
+      // Use the appropriate next phase
+      GamePhase nextPhase = PhaseFactory.createNextTurnPhase( this, salvoMode );
+      setPhase( nextPhase );
     });
-    turnSwitchTimer.setRepeats( false );
     
+    turnSwitchTimer.setRepeats( false );
     turnSwitchTimer.start();
   }
   
@@ -599,9 +666,30 @@ public class GameController extends JLayeredPane implements QuadrantListener
    */
   private void swapStateAndUI()
   {
+    // Always update the game state
     board.switchTurns();
-    boardPanel.swapPanels();
     current = board.getCurrentPlayer();
+
+    // Update the turn indicator
+    terminal.updateTurnButtonIcon();
+
+    // Maintain the panel arrangement the battle phases rely on. This keeps the
+    // original, proven civ-agnostic logic and only generalises the branch by
+    // how many humans are playing:
+    if ( board.getHumanCount() == 2 )
+    {
+      // hot seat: swap every turn so the active player sees their own board
+      boardPanel.swapPanels();
+    }
+    else
+    {
+      // one human (on either civilization) or AI-vs-AI spectating: swap
+      // whenever the new current player is an AI. With one human this keeps the
+      // human's board at the bottom; while spectating (current is always an AI)
+      // it swaps every turn so the bottom panel tracks the current player.
+      if ( current.isAutonomous() )
+        boardPanel.swapPanels();
+    }
   }
   
   /**
@@ -646,6 +734,10 @@ public class GameController extends JLayeredPane implements QuadrantListener
     nextPanel.setQuadrantListener( this );
     
     boardPanel = new BoardPanel( currentPanel, nextPanel );
+
+    // when spectating an AI-vs-AI match there is no hidden side, so reveal both
+    // fleets to the watching human
+    boardPanel.setRevealBoth( board.isSpectating() );
   }
   
   /**

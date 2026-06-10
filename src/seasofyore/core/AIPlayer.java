@@ -102,6 +102,20 @@ public class AIPlayer extends Player
   {
     strategy.processHitResult(x, y, hit);
   }
+
+  /**
+   * Forwards a sunk-ship notification to this AI's targeting strategy so it can
+   * stop hunting the dead ship and update its model of the remaining fleet.
+   *
+   * @param sunkType the type (and length) of the ship sunk
+   * @param x        the x-coordinate of the killing shot
+   * @param y        the y-coordinate of the killing shot
+   */
+  @Override
+  public void notifyEnemyShipSunk( ShipType sunkType, int x, int y )
+  {
+    strategy.notifyShipSunk( sunkType, x, y );
+  }
   
   /**
    * Implements AI ship placement using the strategy.

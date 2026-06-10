@@ -68,17 +68,31 @@ public class SalvoBattlePhase extends BattlePhase
   @Override
   public void handleCellClick( int x, int y, QuadrantPanel quadrantPanel )
   { 
+    // Check if they still have ammunition
     if ( shotsRemaining == 0 )
     {
       controller.logToTerminal( "No more shots this turn!" );
       return;
     }
     
+    // check if targetable relative to subjected QuadrantPanel
     if ( !salvoTarget.canFireOn( x, y ) )
     {
       controller.logToTerminal( FIREDUPE );
       return;
     }
+    
+    // Iterate through previously selected targets, if any exist
+    for ( Point p : shotGridPointQueue )
+    {
+      // Check if attempted cell is already targeted
+      if ( p.x == x && p.y == y )
+      {
+        controller.logToTerminal( "Cell (" + x + "," + y + ") is already marked" );
+        return;
+      }
+    }
+    
     // lock in clicked cell as red. will be fixed as turn ends
     salvoTarget.lockCellForSALVO( x, y );
     shotGridPointQueue.add( new Point( x, y ) );

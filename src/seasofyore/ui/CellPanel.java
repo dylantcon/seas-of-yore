@@ -159,7 +159,7 @@ public class CellPanel extends JPanel
    */
   public int getGridY()
   {
-    return this.x;
+    return this.y;
   }
   
   /**
@@ -283,7 +283,9 @@ public class CellPanel extends JPanel
   }
   
   /**
-   * Locks the cell for SALVO mode, applying the SALVO border.
+   * Gets the border for when the cell is locked for SALVO mode.
+   *
+   * @return the SALVO border
    */
   private Border getSALVOBorder()
   {
@@ -320,9 +322,15 @@ public class CellPanel extends JPanel
     
     switch ( quadrant.getCellType( x, y ) )
     {
-      case PlayerQuadrant.HIT_CELL -> renderFiredCell( g, Color.RED );
-      case PlayerQuadrant.MISS_CELL -> renderFiredCell( g, Color.BLUE );
-      default -> renderFog( g );
+      case PlayerQuadrant.HIT_CELL:
+        renderFiredCell( g, Color.RED );
+        break;
+      case PlayerQuadrant.MISS_CELL:
+        renderFiredCell( g, Color.BLUE );
+        break;
+      default:
+        renderFog( g );
+        break;
     }
   }
   

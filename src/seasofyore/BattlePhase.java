@@ -9,7 +9,6 @@ import seasofyore.ui.FallingStoneAnimation;
 import seasofyore.core.Ship;
 import java.awt.Graphics;
 import java.awt.Point;
-import java.awt.event.MouseEvent;
 
 /** 
  * Represents the battle phase of the Seas of Yore game.

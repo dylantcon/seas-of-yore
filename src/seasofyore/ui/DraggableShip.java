@@ -215,10 +215,12 @@ public class DraggableShip
     String spritePath = String.format( "/images/%s-%s-%s.png", qp.getOwnerCiv(), 
                                        type, direction );
     
-    sprite = new ImageIcon( getClass().getResource( spritePath ) );
-    if ( sprite == null ) 
+    java.net.URL spriteURL = getClass().getResource( spritePath );
+    if ( spriteURL == null )
 
       System.err.println( "Failed to load sprite: " + spritePath );
+    else
+      sprite = new ImageIcon( spriteURL );
   }
   
 

@@ -15,6 +15,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import javax.swing.ImageIcon;
 import javax.swing.JLayeredPane;
 import javax.swing.Timer;
@@ -112,7 +113,9 @@ public class SidebarPanel extends JLayeredPane
    */
   public SidebarPanel()
   {
-    this.shipSlots = new HashMap< >();
+    // linked map: slots must keep the ascending insertion order used by
+    // populateShipSlots, since resizeShipSlots positions them by iteration
+    this.shipSlots = new LinkedHashMap< >();
     this.selectedShip = null;
     this.activeQuadrant = null;
     this.wood = new ImageIcon( getClass().getResource( WOODPATH ) );

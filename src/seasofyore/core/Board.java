@@ -39,25 +39,62 @@ public class Board
   private final PlayerQuadrant bQuad;
   /**
    * The quadrant representing the Franks' territory.
-   */  
+   */
   private final PlayerQuadrant fQuad;
-  
-  
+
   /**
-   * Constructs a new Board object, initializing the quadrants, players, and game state.
-   * <ul>
-   *     <li>The Britons (Player 1) and Franks (Player 2) are initialized with their respective quadrants.</li>
-   *     <li>The game starts in the setup phase with the Britons as the current player.</li>
-   * </ul>
+   * The kind of player controlling the Britons.
+   */
+  private final PlayerType britonsType;
+
+  /**
+   * The kind of player controlling the Franks.
+   */
+  private final PlayerType franksType;
+
+
+  /**
+   * Constructs a new Board object with two human players.
    */
   public Board()
   {
+    this( PlayerType.HUMAN, PlayerType.HUMAN );
+  }
+
+  /**
+   * Legacy constructor: Britons are always human, Franks are an AI of the given
+   * difficulty (or human when {@code withAI} is false). Retained so existing
+   * single-AI wiring keeps working; delegates to the canonical constructor.
+   *
+   * @param withAI       true to make the Franks an AI
+   * @param aiDifficulty the Franks' AI difficulty (ignored if withAI is false)
+   */
+  public Board( boolean withAI, PlayerFactory.AIDifficulty aiDifficulty )
+  {
+    this( PlayerType.HUMAN,
+          withAI ? PlayerType.fromDifficulty( aiDifficulty ) : PlayerType.HUMAN );
+  }
+
+  /**
+   * Canonical constructor: builds a board for any matchup by specifying what
+   * controls each civilization. Either side may be a human or any AI tier,
+   * enabling human-vs-human, human-vs-AI (on either civilization), and AI-vs-AI
+   * spectator games.
+   *
+   * @param britonsType the kind of player controlling the Britons
+   * @param franksType  the kind of player controlling the Franks
+   */
+  public Board( PlayerType britonsType, PlayerType franksType )
+  {
+    this.britonsType = ( britonsType == null ) ? PlayerType.HUMAN : britonsType;
+    this.franksType = ( franksType == null ) ? PlayerType.HUMAN : franksType;
+
     bQuad = new PlayerQuadrant();
     fQuad = new PlayerQuadrant();
-    
-    britons = new HumanPlayer( Civilization.BRITONS, bQuad, fQuad );
-    franks = new HumanPlayer( Civilization.FRANKS, fQuad, bQuad );
-    
+
+    britons = PlayerFactory.createPlayer( this.britonsType, Civilization.BRITONS, bQuad, fQuad );
+    franks = PlayerFactory.createPlayer( this.franksType, Civilization.FRANKS, fQuad, bQuad );
+
     currentPlayer = britons;
     setupPhase = true;
   }
@@ -111,7 +148,17 @@ public class Board
   {
     if ( isPlacementFinal() && setupPhase )
       setupPhase = false;
+    
     currentPlayer = ( currentPlayer == britons ? franks : britons );
+    
+    // if new current player is AI and in setup phase, place ships automatically
+    if ( currentPlayer.isAutonomous() && !currentPlayer.hasPlacedAllShips() && setupPhase )
+    {
+      // AI places ships automatically
+      currentPlayer.randomVesselPlacement();
+      // and immediately switches back to human player
+      switchTurns();
+    }
   }
   
   /**
@@ -203,6 +250,100 @@ public class Board
   public Player getFranks()
   {
     return this.franks;
+  }
+
+  /**
+   * Gets the kind of player controlling the Britons.
+   *
+   * @return the Britons' player type
+   */
+  public PlayerType getBritonsType()
+  {
+    return this.britonsType;
+  }
+
+  /**
+   * Gets the kind of player controlling the Franks.
+   *
+   * @return the Franks' player type
+   */
+  public PlayerType getFranksType()
+  {
+    return this.franksType;
+  }
+
+  /**
+   * Counts how many of the two players are human. Zero means an AI-vs-AI
+   * spectator game; one means a standard solo game on either civilization; two
+   * means a hot-seat human-vs-human game.
+   *
+   * @return the number of human players (0, 1, or 2)
+   */
+  public int getHumanCount()
+  {
+    int count = 0;
+    if ( !britons.isAutonomous() )
+      count++;
+    if ( !franks.isAutonomous() )
+      count++;
+    return count;
+  }
+
+  /**
+   * Whether this is an AI-vs-AI game the human only spectates.
+   *
+   * @return true if neither player is human
+   */
+  public boolean isSpectating()
+  {
+    return getHumanCount() == 0;
+  }
+
+  /**
+   * Returns the single human player, or null if there is not exactly one. Used
+   * to anchor the on-screen perspective in solo games.
+   *
+   * @return the lone human player, or null
+   */
+  public Player getSoleHuman()
+  {
+    if ( getHumanCount() != 1 )
+      return null;
+    return britons.isAutonomous() ? franks : britons;
+  }
+
+  /**
+   * Auto-places the fleet of every AI player that has not yet placed. Lets the
+   * controller settle all AI boards up front so the placement UI only ever has
+   * to involve humans.
+   */
+  public void autoPlaceAIShips()
+  {
+    if ( britons.isAutonomous() && !britons.hasPlacedAllShips() )
+      britons.randomVesselPlacement();
+    if ( franks.isAutonomous() && !franks.hasPlacedAllShips() )
+      franks.randomVesselPlacement();
+  }
+
+  /**
+   * Prepares the board for play, intervening only when the nominal first player
+   * (the Britons) is an AI. In that case it settles every AI fleet up front and
+   * then either ends setup outright (an AI-vs-AI spectator game) or hands setup
+   * to the lone human so the placement UI is only ever shown to a person. When
+   * the Britons are human, the existing lazy setup flow already does the right
+   * thing, so this returns without changing anything.
+   */
+  public void prepareForPlay()
+  {
+    if ( !currentPlayer.isAutonomous() )
+      return;
+
+    autoPlaceAIShips();
+
+    if ( isPlacementFinal() )
+      setupPhase = false;            // AI vs AI: nothing left to place
+    else
+      currentPlayer = getNextPlayer(); // hand setup to the lone human
   }
 
   /**

@@ -61,6 +61,12 @@ public class BoardPanel extends JPanel
    * Indicates whether the panels have already been added to the layout.
    */
   private boolean panelsAdded = false;
+
+  /**
+   * When true, both quadrants render their fleets (used when spectating an
+   * AI-vs-AI match, where neither side is hidden from the watching human).
+   */
+  private boolean revealBoth = false;
   
   /**
    * Default padding used in the panel layout (GridBagConstraints).
@@ -98,7 +104,8 @@ public class BoardPanel extends JPanel
     
     this.removeAll();
     friendlyPane.setFriendly( true );
-    enemyPane.setFriendly( false );
+    // in spectator games both fleets are shown; otherwise the enemy is hidden
+    enemyPane.setFriendly( revealBoth );
     
     friendlyPane.updateChildPanelBounds();
     enemyPane.updateChildPanelBounds();
@@ -175,9 +182,22 @@ public class BoardPanel extends JPanel
   }
   
   /**
+   * Sets whether both quadrants should render their fleets (spectator mode).
+   * Triggers a layout refresh so the change takes effect immediately.
+   *
+   * @param reveal true to reveal both fleets; false to hide the enemy's
+   */
+  public void setRevealBoth( boolean reveal )
+  {
+    this.revealBoth = reveal;
+    this.panelsAdded = false;
+    this.addAllPanels();
+  }
+
+  /**
    * Swaps the friendly and enemy QuadrantPanels.
    * This is typically used to switch perspectives between players.
-   */  
+   */
   public void swapPanels()
   {
     QuadrantPanel newFriendly = this.enemyPane;

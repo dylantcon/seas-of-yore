@@ -319,13 +319,27 @@ public abstract class Player
   public abstract int[] calculateNextAttack();
   
   /**
-   * Processes the result of an attack. 
+   * Processes the result of an attack.
    * Allows AI players to update their targeting strategy based on hit/miss results.
-   * 
+   *
    * @param x the x-coordinate of the attack
    * @param y the y-coordinate of the attack
    * @param hit true if the attack hit a ship; false otherwise
    */
   public abstract void processAttackResult( int x, int y, boolean hit );
+
+  /**
+   * Notifies this player that one of the enemy's ships was just sunk by the
+   * given shot. Human players ignore this (the UI shows it); AI players forward
+   * it to their targeting strategy. Concrete no-op so only AI need override.
+   *
+   * @param sunkType the type (and length) of the ship sunk
+   * @param x        the x-coordinate of the killing shot
+   * @param y        the y-coordinate of the killing shot
+   */
+  public void notifyEnemyShipSunk( ShipType sunkType, int x, int y )
+  {
+    // default: nothing to do (human players learn nothing algorithmically)
+  }
 }
 

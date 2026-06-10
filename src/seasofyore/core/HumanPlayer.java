@@ -34,7 +34,7 @@ public class HumanPlayer extends Player
   }
   
   /**
-   * Human player select attack coordinates through UI interaction.
+   * Human players select attack coordinates through UI interaction.
    * This method is not used for human players but needs implementation.
    * 
    * @return null, as attack coordinates are determined through UI
