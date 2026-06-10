@@ -2,14 +2,16 @@ package seasofyore;
 
 import seasofyore.ui.SidebarPanel;
 import seasofyore.ui.BoardPanel;
+import seasofyore.ui.CurtainPanel;
+import seasofyore.ui.PlacementToolbar;
 import seasofyore.ui.QuadrantPanel;
+import seasofyore.ui.SavedMatchDialogs;
 import seasofyore.ui.TerminalPanel;
 import seasofyore.ui.WinScreenPanel;
-import seasofyore.ui.WoodPanel;
 import seasofyore.ui.PauseMenuPanel;
-import seasofyore.ui.CustomButton;
 import seasofyore.core.Player;
 import seasofyore.core.Civilization;
+import seasofyore.core.MatchConfig;
 import seasofyore.core.PlayerQuadrant;
 import seasofyore.core.PlayerType;
 import seasofyore.core.SavedMatch;
@@ -19,13 +21,9 @@ import seasofyore.match.MatchHandler;
 import seasofyore.match.NetworkedMatchHandler;
 import seasofyore.match.OfflineMatchHandler;
 import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Font;
 import java.awt.Graphics;
-import java.awt.GridLayout;
 import java.awt.Point;
 import java.io.File;
-import java.io.IOException;
 import javax.swing.AbstractAction;
 import javax.swing.JLayeredPane;
 import javax.swing.JPanel;
@@ -36,15 +34,9 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
-import javax.swing.Box;
-import javax.swing.ImageIcon;
-import javax.swing.JButton;
 import javax.swing.JComponent;
-import javax.swing.JFileChooser;
-import javax.swing.JOptionPane;
 import javax.swing.KeyStroke;
 import javax.swing.Timer;
-import javax.swing.filechooser.FileNameExtensionFilter;
 
 /**
  * Controls the flow of the Seas of Yore game, managing phases, UI interactions, 
@@ -143,14 +135,15 @@ public class GameController extends JLayeredPane implements QuadrantListener
   private JPanel dragLayerPanel;
 
   /**
-   * The curtain panel for turn transitions.
+   * The curtain for hot-seat turn transitions. Owns its own motion, states,
+   * and reveal button; the controller only drops it, opens it, and pauses it.
    */
-  private JPanel curtainPanel;
-  
+  private CurtainPanel curtain;
+
   /**
    * The editor panel visible for human players during the ShipPlacementPhase
    */
-  private JPanel toolbarPanel;
+  private PlacementToolbar toolbarPanel;
 
   /**
    * The terminal panel for displaying game messages and housing the
@@ -174,21 +167,6 @@ public class GameController extends JLayeredPane implements QuadrantListener
   private Player current;
 
   /**
-   * Timer controlling the curtain animations for turn transitions.
-   */  
-  private Timer curtainTimer;
-  
-  /**
-   * Path to the random placement button image
-   */
-  private static final String RANDOM = "/images/random.png";
-  
-  /**
-   * Path to the reset placement button image (trash icon)
-   */
-  private static final String GARBAGE = "/images/garbage.png";
-  
-  /**
    * Represents the fixed size of the toolbar buttons
    */
   private static final int TB_BUTTON_DIM = 75;
@@ -199,110 +177,29 @@ public class GameController extends JLayeredPane implements QuadrantListener
   private boolean battleAnnounced = false;
 
   /**
-   * Indicates if the curtain is fully closed.
+   * The human commanders' chosen names, applied to freshly built boards
+   * (restored boards already carry theirs).
    */
-  private boolean curtainClosedState = false;
+  private final String britonsName;
+  private final String franksName;
 
   /**
-   * Indicates if the curtain is in the process of closing.
-   */
-  private boolean curtainClosingState = false;
-
-  /**
-   * The vertical position of the curtain.
-   */
-  private int curtainY;
-
-  /**
-   * Frames elapsed in the current curtain sweep; drives the exponential
-   * speed-up, exactly as the falling stone's does.
-   */
-  private int curtainFrame;
-
-  /**
-   * The classic curtain speed in px/frame, reused as the base of the
-   * exponential: each frame moves BASE^(frame / TENFOLD) pixels, so the
-   * curtain starts gliding and accelerates smoothly through its old
-   * constant speed.
-   */
-  private static final double CURTAIN_BASE_SPEED = 10.0;
-
-  /**
-   * Frames for the curtain's speed to grow by another factor of the base.
-   */
-  private static final int CURTAIN_TENFOLD_FRAMES = 40;
-
-  /**
-   * What to do the instant the curtain finishes closing -- the turn swap
-   * happens here, safely hidden behind the fully closed curtain.
-   */
-  private Runnable onCurtainClosed;
-
-  /**
-   * Constructs a new GameController and starts the game.
+   * Constructs a GameController for a fresh match. Everything situational --
+   * who commands each civilization, their chosen names, the rules variant,
+   * and presentation preferences -- arrives in one configuration value.
    *
-   * @param salvo          true if the game is in Salvo mode; false otherwise
-   * @param returnToTitle  a Runnable to return to the title screen
-   */
-  public GameController( boolean salvo, Runnable returnToTitle )
-  {
-    // two humans (classic hot-seat)
-    this( salvo, returnToTitle, PlayerType.HUMAN, PlayerType.HUMAN, true );
-  }
-
-  /**
-   * Constructs a new GameController with optional AI opponent (legacy wiring:
-   * the human is always the Britons).
-   *
-   * @param salvo           true if the game is in Salvo mode; false otherwise
-   * @param returnToTitle   a Runnable to return to the title screen
-   * @param withAI          true to include an AI opponent, false for human v. human
-   * @param aiDifficulty    the difficulty setting for the AI (ignored if withAI is false)
-   */
-  public GameController( boolean salvo, Runnable returnToTitle, boolean withAI,
-  /********************/ seasofyore.core.PlayerFactory.AIDifficulty aiDifficulty )
-  {
-    this( salvo, returnToTitle, PlayerType.HUMAN,
-          withAI ? PlayerType.fromDifficulty( aiDifficulty ) : PlayerType.HUMAN,
-          true );
-  }
-
-  /**
-   * Constructs a new GameController for an arbitrary matchup with default
-   * presentation settings.
-   *
-   * @param salvo         true if the game is in Salvo mode; false otherwise
+   * @param config        the assembled match configuration
    * @param returnToTitle a Runnable to return to the title screen
-   * @param britonsType   the kind of player controlling the Britons
-   * @param franksType    the kind of player controlling the Franks
    */
-  public GameController( boolean salvo, Runnable returnToTitle,
-  /********************/ PlayerType britonsType, PlayerType franksType )
-  {
-    this( salvo, returnToTitle, britonsType, franksType, true );
-  }
-
-  /**
-   * The canonical constructor: an arbitrary matchup, specifying what controls
-   * each civilization and how attacks are presented. Supports human vs human,
-   * human vs AI on either civilization, and AI vs AI spectator games, in both
-   * Classic and Salvo modes.
-   *
-   * @param salvo           true if the game is in Salvo mode; false otherwise
-   * @param returnToTitle   a Runnable to return to the title screen
-   * @param britonsType     the kind of player controlling the Britons
-   * @param franksType      the kind of player controlling the Franks
-   * @param stoneAnimations true to animate attacks with the falling stone
-   */
-  public GameController( boolean salvo, Runnable returnToTitle,
-  /********************/ PlayerType britonsType, PlayerType franksType,
-  /********************/ boolean stoneAnimations )
+  public GameController( MatchConfig config, Runnable returnToTitle )
   {
     this.returnToTitle = returnToTitle;
-    this.salvoMode = salvo;
-    this.stoneAnimationsEnabled = stoneAnimations;
-    this.britonsType = ( britonsType == null ) ? PlayerType.HUMAN : britonsType;
-    this.franksType = ( franksType == null ) ? PlayerType.HUMAN : franksType;
+    this.salvoMode = config.isSalvoMode();
+    this.stoneAnimationsEnabled = config.useStoneAnimations();
+    this.britonsType = config.getBritonsType();
+    this.franksType = config.getFranksType();
+    this.britonsName = config.getBritonsName();
+    this.franksName = config.getFranksName();
     this.matchHandler = new OfflineMatchHandler();
 
     startGame();
@@ -310,9 +207,9 @@ public class GameController extends JLayeredPane implements QuadrantListener
 
   /**
    * Constructs a GameController that resumes a match restored from disk. The
-   * saved board (players, fleets, wounds, AI state, whose turn it is) is used
-   * as-is for the first game; choosing "play again" afterwards rebuilds a
-   * fresh match between the same kinds of players.
+   * saved board (players, fleets, wounds, names, AI state, whose turn it is)
+   * is used as-is for the first game; choosing "play again" afterwards
+   * rebuilds a fresh match between the same kinds of players.
    *
    * @param saved         the bottled match
    * @param returnToTitle a Runnable to return to the title screen
@@ -324,6 +221,8 @@ public class GameController extends JLayeredPane implements QuadrantListener
     this.stoneAnimationsEnabled = true;
     this.britonsType = saved.getBoard().getBritonsType();
     this.franksType = saved.getBoard().getFranksType();
+    this.britonsName = saved.getBoard().getBritons().getName();
+    this.franksName = saved.getBoard().getFranks().getName();
     this.matchHandler = new OfflineMatchHandler();
     this.injectedBoard = saved.getBoard();
 
@@ -501,9 +400,17 @@ public class GameController extends JLayeredPane implements QuadrantListener
     pausePanel = null;
     // initialize backend logic: a restored board if one was injected,
     // otherwise a fresh match between the configured player kinds
-    board = ( injectedBoard != null ) ? injectedBoard
-                                      : new Board( britonsType, franksType );
-    injectedBoard = null;
+    if ( injectedBoard != null )
+    {
+      board = injectedBoard;
+      injectedBoard = null; // a later "play again" rebuilds from scratch
+    }
+    else
+    {
+      board = new Board( britonsType, franksType );
+      board.getBritons().setName( britonsName );
+      board.getFranks().setName( franksName );
+    }
     board.prepareForPlay();   // settle AI setup so only humans see placement UI
     matchHandler.beginMatch( this );
     current = board.getCurrentPlayer();
@@ -527,27 +434,26 @@ public class GameController extends JLayeredPane implements QuadrantListener
     add( gamePanel, JLayeredPane.DEFAULT_LAYER );
     add( sidebarPanel, JLayeredPane.PALETTE_LAYER );
     add( dragLayerPanel, JLayeredPane.DRAG_LAYER );
-    add( curtainPanel, JLayeredPane.POPUP_LAYER );
-    
-    initializeCurtainTimer();
+    add( curtain, JLayeredPane.POPUP_LAYER );
+
     initializeMouseListeners();
     initializePauseKeyBinding();
     terminal.setChatAvailable( matchHandler.supportsChat() );
     sidebarPanel.setActiveQuadrant( boardPanel.getFriendlyPanel() );
-    
+
     this.addComponentListener( new ComponentAdapter()
     {
       @Override
       public void componentResized( ComponentEvent e )
       {
         updateComponentBounds();
-        updateCurtainBounds();
+        curtain.updateBounds();
         sidebarPanel.forceCloseSidebar();
       }
     });
-    
+
     this.updateComponentBounds();
-    this.updateCurtainBounds();
+    curtain.updateBounds();
     updatePhase(); // updatePhase starts the game
   }
   
@@ -687,56 +593,6 @@ public class GameController extends JLayeredPane implements QuadrantListener
   }
   
   /**
-   * Fetches and constructs an anonymous inner class that dictates the
-   * movement of the curtainPanel during both opening and closing sweeps.
-   * Each sweep accelerates exponentially -- the same treatment the falling
-   * stone got -- so the curtain eases away from rest and lands with weight.
-   * The instant a closing sweep completes, the queued onCurtainClosed work
-   * (the turn swap) runs behind the fully drawn curtain.
-   */
-  private void initializeCurtainTimer()
-  {
-    curtainTimer = new Timer( 5, ( ActionEvent e ) ->
-    {
-      curtainFrame++;
-      int sweep = (int) Math.ceil(
-          Math.pow( CURTAIN_BASE_SPEED,
-                    curtainFrame / (double) CURTAIN_TENFOLD_FRAMES ) );
-
-      if ( curtainClosingState )
-      {
-        curtainY += sweep;
-        if ( curtainY >= getHeight() )
-        {
-          curtainClosingState = false;
-          curtainClosedState = true;
-          curtainTimer.stop();
-
-          if ( onCurtainClosed != null )
-          {
-            Runnable queued = onCurtainClosed;
-            onCurtainClosed = null;
-            queued.run(); // swap the state while nobody can see the boards
-          }
-        }
-        updateCurtainBounds();
-      }
-      else if ( !curtainClosedState )
-      {
-        curtainY -= sweep;
-        if ( curtainY <= -getHeight() )
-        {
-          curtainY = -getHeight();
-          curtainClosedState = false;
-          curtainPanel.setVisible( false );
-          curtainTimer.stop();
-        }
-      }
-      updateCurtainBounds();
-    });
-  }
-  
-  /**
    *   Organization helper. Oversees the construction and
    * delegation of mouseListeners to the components who need
    *   to parse mouse events during any given game phase
@@ -800,7 +656,8 @@ public class GameController extends JLayeredPane implements QuadrantListener
     // the calling phase finishes unwinding first).
     if ( matchHandler.showsCurtain() )
     {
-      dropCurtain( this::advanceTurn );
+      sidebarPanel.forceCloseSidebar();
+      curtain.drop( this::advanceTurn );
     }
     else
     {
@@ -910,13 +767,12 @@ public class GameController extends JLayeredPane implements QuadrantListener
   {
     sidebarPanel = new SidebarPanel();
     this.initializeBoardPanel();
-    
+
     gamePanel.add( boardPanel, BorderLayout.CENTER );
     gamePanel.add( sidebarPanel, BorderLayout.EAST );
-    
-    curtainPanel = createCurtain();
-    gamePanel.add( curtainPanel, BorderLayout.NORTH );
-    
+
+    curtain = new CurtainPanel( this );
+
     this.initializeTerminalPanel();
   }
   
@@ -955,32 +811,7 @@ public class GameController extends JLayeredPane implements QuadrantListener
   
   private void initializeToolbar()
   {
-    toolbarPanel = new JPanel( new GridLayout( 4, 1 ) );
-    toolbarPanel.setOpaque( false );
-    
-    toolbarPanel.add( Box.createVerticalGlue() );
-    ImageIcon i = new ImageIcon( getClass().getResource( RANDOM ) );
-    CustomButton randomizeButton = new CustomButton( i );
-    randomizeButton.addActionListener( ( ActionEvent e ) -> 
-    {
-      current.randomVesselPlacement();
-      sidebarPanel.allSlotsEnabled( false );
-      terminal.setTurnButtonEnabled( true );
-      repaint();
-    });
-    toolbarPanel.add( randomizeButton );
-    i = new ImageIcon( getClass().getResource( GARBAGE ) );
-    CustomButton garbageButton = new CustomButton( i );
-    garbageButton.addActionListener( ( ActionEvent e ) -> 
-    {
-      current.reset();
-      currentPhase.cleanup();
-      sidebarPanel.resetAllSlots();
-      boardPanel.getFriendlyPanel().enableCellInteraction();
-      repaint();
-    });
-    toolbarPanel.add( garbageButton );
-    toolbarPanel.add( Box.createVerticalGlue() );
+    toolbarPanel = new PlacementToolbar( this );
   }
   
   public void addToolbar()
@@ -997,69 +828,6 @@ public class GameController extends JLayeredPane implements QuadrantListener
     repaint();
   }
   
-  /**
-  * Creates the curtain panel used for turn transitions.
-  * Includes a revealing button to manually open the curtain.
-  *
-  * @return the curtain panel
-  */
-  private JPanel createCurtain()
-  {
-    curtainY = 0;
-    // the curtain is a great wooden bulkhead -- the same ship-deck texture
-    // the sidebar wears -- washed dark so the menus' button reads clearly
-    JPanel curtain = new WoodPanel( 110 );
-    curtain.setLayout( null );
-
-    JButton revealer = new JButton( "RAISE THE CURTAIN" );
-    revealer.setFont( new Font( "Serif", Font.BOLD, 20 ) );
-    revealer.setForeground( new Color( 18, 10, 28 ) );    // ink on parchment,
-    revealer.setBackground( new Color( 229, 213, 175 ) ); // like the Back button
-    revealer.setFocusable( false );
-    revealer.setBounds( getWidth() / 2 - 140, getHeight() / 2 - 30, 280, 60 );
-    revealer.addActionListener( e -> openCurtain() );
-    curtain.add( revealer );
-
-    curtain.addComponentListener( new ComponentAdapter()
-    {
-      @Override
-      public void componentResized( ComponentEvent e )
-      {
-        revealer.setBounds( getWidth() / 2 - 140, getHeight() / 2 - 30, 280, 60 );
-      }
-    });
-    return curtain;
-  }
-
-  /**
-   * Drops the curtain for a turn transition, closing the sidebar and queueing
-   * the work to perform the instant the curtain has fully closed.
-   *
-   * @param onClosed the work to run behind the closed curtain
-   */
-  private void dropCurtain( Runnable onClosed )
-  {
-    sidebarPanel.forceCloseSidebar();
-    onCurtainClosed = onClosed;
-    curtainClosingState = true;
-    curtainClosedState = false;
-    curtainY = 0;
-    curtainFrame = 0;
-    curtainPanel.setVisible( true );
-    terminal.setTurnButtonEnabled( false );
-    curtainTimer.start();
-  }
-
-  /**
-   * Opens the curtain after a turn transition, sweeping it back up with the
-   * same accelerating motion it fell with.
-   */
-  private void openCurtain()
-  {
-    curtainClosedState = false;
-    curtainFrame = 0;
-    curtainTimer.start();
-  }
   
   /**
    * Updates the bounds of components in the GameController, ensuring proper layout adjustments.
@@ -1069,9 +837,9 @@ public class GameController extends JLayeredPane implements QuadrantListener
   {
     int width = this.getWidth();
     int height = this.getHeight();
-    
-    if ( curtainPanel != null )
-      updateCurtainBounds();
+
+    if ( curtain != null )
+      curtain.updateBounds();
 
     if ( gamePanel != null )
       gamePanel.setBounds( 0, 0, width, height );
@@ -1186,9 +954,9 @@ public class GameController extends JLayeredPane implements QuadrantListener
       if ( currentPhase != null )
         currentPhase.pause();
 
-      curtainWasMoving = curtainTimer.isRunning();
+      curtainWasMoving = curtain.isMoving();
       if ( curtainWasMoving )
-        curtainTimer.stop();
+        curtain.pauseMotion();
     }
 
     pausePanel = new PauseMenuPanel( this, freeze );
@@ -1216,7 +984,7 @@ public class GameController extends JLayeredPane implements QuadrantListener
         currentPhase.resume();
 
       if ( curtainWasMoving )
-        curtainTimer.start();
+        curtain.resumeMotion();
       curtainWasMoving = false;
     }
 
@@ -1241,50 +1009,17 @@ public class GameController extends JLayeredPane implements QuadrantListener
 
   /**
    * Prompts for a destination and bottles the match to disk. Offered from
-   * the pause menu once both fleets are placed.
+   * the pause menu once both fleets are placed; the dialog plumbing lives
+   * in SavedMatchDialogs.
    */
   public void saveGameViaDialog()
   {
-    JFileChooser chooser = new JFileChooser();
-    chooser.setDialogTitle( "Save thy voyage" );
-    chooser.setFileFilter( new FileNameExtensionFilter(
-        "Seas of Yore saves (*." + SavedMatch.FILE_EXTENSION + ")",
-        SavedMatch.FILE_EXTENSION ) );
+    File file = SavedMatchDialogs.saveViaDialog(
+        this, new SavedMatch( board, salvoMode ) );
 
-    if ( chooser.showSaveDialog( this ) != JFileChooser.APPROVE_OPTION )
-      return;
-
-    File file = chooser.getSelectedFile();
-    if ( !file.getName().toLowerCase().endsWith( "." + SavedMatch.FILE_EXTENSION ) )
-      file = new File( file.getParentFile(),
-                       file.getName() + "." + SavedMatch.FILE_EXTENSION );
-
-    try
-    {
-      SavedMatch.save( file, new SavedMatch( board, salvoMode ) );
+    if ( file != null )
       terminal.logMessage( TerminalPanel.GREEN + "Voyage committed to the log: "
                          + file.getName() + TerminalPanel.RESET );
-    }
-    catch ( IOException ex )
-    {
-      JOptionPane.showMessageDialog( this,
-          "The log could not be written: " + ex.getMessage(),
-          "Save failed", JOptionPane.ERROR_MESSAGE );
-    }
   }
 
-  /**
-   * Updates the bounds of the curtain panel, ensuring it is correctly positioned
-   * based on its state. Adjusts the position when the curtain is fully closed.
-   */
-  public void updateCurtainBounds()
-  {
-    int width = this.getWidth();
-    int height = this.getHeight();
-    
-    if ( curtainClosedState ) // curtain fully closed, enforce
-      curtainY = height;
-      
-    curtainPanel.setBounds( 0, curtainY - height, width, height );
-  }
 }

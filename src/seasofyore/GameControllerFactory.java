@@ -4,21 +4,36 @@
  */
 package seasofyore;
 
-import seasofyore.core.PlayerFactory;
+import seasofyore.core.MatchConfig;
 import seasofyore.core.PlayerType;
 
 /**
- * Factory class responsible for creating GameController instances based on game mode.
- * This enables lazy initialization and resource management.
- * 
+ * Factory class responsible for creating GameController instances. Every
+ * matchup -- the old fixed modes included -- reduces to building the right
+ * {@link MatchConfig}, so the factory is now a thin translation layer.
+ *
  * @author dylan
  */
 public class GameControllerFactory
 {
-  
+
   /**
-   * Creates a GameController instance configured for the specified game mode.
-   * 
+   * Creates a GameController for an assembled match configuration. This is
+   * the entry point for the battle-setup screen.
+   *
+   * @param config      the match configuration
+   * @param returnTitle callback to return to the title screen
+   * @return a configured GameController
+   */
+  public GameController createController( MatchConfig config, Runnable returnTitle )
+  {
+    return new GameController( config, returnTitle );
+  }
+
+  /**
+   * Creates a GameController instance configured for one of the legacy fixed
+   * game modes, expressed as the equivalent match configuration.
+   *
    * @param mode the game mode to create a controller for
    * @param returnTitle callback to return to the title screen
    * @return a properly configured GameController instance
@@ -28,15 +43,15 @@ public class GameControllerFactory
     switch ( mode )
     {
       case CLASSIC:
-        return new GameController( false, returnTitle );
+        return createController( hotSeat( false ), returnTitle );
       case SALVO:
-        return new GameController( true, returnTitle );
+        return createController( hotSeat( true ), returnTitle );
       case AI_EASY:
-        return createAIController( PlayerFactory.AIDifficulty.EASY, false, returnTitle );
+        return createController( soloVersus( PlayerType.AI_EASY ), returnTitle );
       case AI_MEDIUM:
-        return createAIController( PlayerFactory.AIDifficulty.MEDIUM, false, returnTitle );
+        return createController( soloVersus( PlayerType.AI_MEDIUM ), returnTitle );
       case AI_HARD:
-        return createAIController( PlayerFactory.AIDifficulty.HARD, false, returnTitle );
+        return createController( soloVersus( PlayerType.AI_HARD ), returnTitle );
       case MULTIPLAYER_LAN:
         throw new UnsupportedOperationException( "Multiplayer mode not yet implemented" );
       case MULTIPLAYER_ONLINE:
@@ -45,53 +60,28 @@ public class GameControllerFactory
         throw new IllegalArgumentException( "Unknown game mode: " + mode );
     }
   }
-  
+
   /**
-   * Creates a GameController with an AI opponent.
-   * 
-   * @param d the AI difficulty level
-   * @param rT callback to return to the title screen
-   * @return a GameController configured for AI play
+   * The configuration for a classic two-human hot-seat match.
+   *
+   * @param salvo true for SALVO rules
+   * @return the match configuration
    */
-  private GameController createAIController( PlayerFactory.AIDifficulty d, boolean s, Runnable rT )
+  private static MatchConfig hotSeat( boolean salvo )
   {
-    return new GameController( s, rT, true, d );
+    return new MatchConfig( PlayerType.HUMAN, PlayerType.HUMAN,
+                            null, null, salvo, true );
   }
 
   /**
-   * Creates a GameController for an arbitrary matchup: any combination of human
-   * and AI tiers on the two civilizations, in either Classic or Salvo mode.
-   * This is the entry point for the custom-battle configuration screen.
+   * The configuration for the legacy solo wiring: a human commanding the
+   * Britons against an AI commanding the Franks.
    *
-   * @param britonsType the kind of player controlling the Britons
-   * @param franksType  the kind of player controlling the Franks
-   * @param salvo       true for Salvo mode; false for Classic
-   * @param returnTitle callback to return to the title screen
-   * @return a configured GameController
+   * @param ai the AI tier to face
+   * @return the match configuration
    */
-  public GameController createCustomController( PlayerType britonsType, PlayerType franksType,
-                                               boolean salvo, Runnable returnTitle )
+  private static MatchConfig soloVersus( PlayerType ai )
   {
-    return createCustomController( britonsType, franksType, salvo, true, returnTitle );
-  }
-
-  /**
-   * Creates a GameController for an arbitrary matchup with presentation
-   * preferences: any combination of human and AI tiers, Classic or Salvo
-   * rules, and the falling-stone attack animation shown or skipped.
-   *
-   * @param britonsType     the kind of player controlling the Britons
-   * @param franksType      the kind of player controlling the Franks
-   * @param salvo           true for Salvo mode; false for Classic
-   * @param stoneAnimations true to animate attacks with the falling stone
-   * @param returnTitle     callback to return to the title screen
-   * @return a configured GameController
-   */
-  public GameController createCustomController( PlayerType britonsType, PlayerType franksType,
-                                               boolean salvo, boolean stoneAnimations,
-                                               Runnable returnTitle )
-  {
-    return new GameController( salvo, returnTitle, britonsType, franksType,
-                               stoneAnimations );
+    return new MatchConfig( PlayerType.HUMAN, ai, null, null, false, true );
   }
 }

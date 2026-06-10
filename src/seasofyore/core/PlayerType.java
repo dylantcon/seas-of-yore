@@ -15,25 +15,29 @@ public enum PlayerType
   /** A human player who acts through the UI. */
   HUMAN( "Human", "Mortal Commander",
     "A livin', breathin' commander o' flesh an' blood, sailin' by wit, "
-    + "nerve, an' whatever luck the saints will spare." , null ),
+    + "nerve, an' whatever luck the saints will spare. God bless yer soul." , null ),
 
   /** An AI using the Easy (checkerboard) strategy. */
   AI_EASY( "Easy AI", "Deckhand Davey",
     "A green deckhand what fires wherever the gulls point. Davey pokes at "
-    + "the waves like a blindfolded darter -- a fine first foe fer a fresh "
-    + "commander findin' their sea legs.", AIDifficulty.EASY ),
+    + "the waves like a blindfolded darter. "
+    + "Fresh 'o mind, the lad be hardly able to tie a lowly knot."
+    + " Davey be a fine first foe fer "
+    + "a fresh commander findin' their sea legs.", AIDifficulty.EASY ),
 
   /** An AI using the Medium (heuristic) strategy. */
   AI_MEDIUM( "Medium AI", "Bosun Bramble",
-    "An old bosun with a nose fer blood in the water. Bramble wanders 'til "
-    + "he draws a single drop -- then follows the trail of it, plank by "
-    + "plank, 'til yer hull gives way.", AIDifficulty.MEDIUM ),
+    "An old bosun with a nose fer blood in the water. "
+    + "This salty dog be clever, ye best keep yer wits about ye. "
+    + "Bramble wanders 'til he strikes wood, then he's after ye, plank-by-"
+    + "plank, 'til yer hull gives way to the cold, foamy sea.", AIDifficulty.MEDIUM ),
 
   /** An AI using the Hard (probability heatmap) strategy. */
   AI_HARD( "Hard AI", "Admiral Greywake",
-    "A grizzled admiral what charts every wave with grim arithmetic. "
-    + "Greywake reads the sea like scripture, an' yer very silence tells "
-    + "him where ye hide.", AIDifficulty.HARD ),
+    "A grizzled admiral what charts ev'ry wave with grim, unrelentin' arithmetic. "
+    + "Fer twenty-five summers, he ponder'd the logs at a maritime academy. "
+    + "Greywake reads the sea like scripture, yer very silence tells "
+    + "him where yer sailors be.", AIDifficulty.HARD ),
 
   /** An AI using the Extreme (joint Monte Carlo + stealth placement) strategy. */
   AI_EXTREME( "Extreme AI", "The Drowned King",

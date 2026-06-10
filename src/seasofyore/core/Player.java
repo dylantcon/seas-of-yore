@@ -40,6 +40,12 @@ public abstract class Player implements Serializable
   protected int placedShips = 0;
 
   /**
+   * The commander's chosen name (without title), or null when unnamed.
+   * Serialized with the player, so saved games remember who was sailing.
+   */
+  protected String name;
+
+  /**
    * The civilization the player represents.
    */
   protected final Civilization civ;
@@ -94,12 +100,46 @@ public abstract class Player implements Serializable
   
   /**
    * Gets the player's civilization.
-   * 
+   *
    * @return the calling object's civilization
    */
   public Civilization getCiv()
   {
     return this.civ;
+  }
+
+  /**
+   * Gets the commander's chosen name, without title.
+   *
+   * @return the raw name, or null when unnamed
+   */
+  public String getName()
+  {
+    return this.name;
+  }
+
+  /**
+   * Sets the commander's chosen name.
+   *
+   * @param name the raw name (null or blank means unnamed)
+   */
+  public void setName( String name )
+  {
+    this.name = name;
+  }
+
+  /**
+   * The name as the game speaks it: every named human is addressed as
+   * "Commander &lt;name&gt;" -- the title is imposed, not chosen -- and an
+   * unnamed one is simply the Mortal Commander.
+   *
+   * @return the titled display name
+   */
+  public String getTitledName()
+  {
+    if ( name == null || name.trim().isEmpty() )
+      return "Mortal Commander";
+    return "Commander " + name.trim();
   }
   
   /**

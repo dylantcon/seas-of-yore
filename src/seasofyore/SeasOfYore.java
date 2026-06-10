@@ -9,24 +9,21 @@ import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
-import java.io.File;
-import java.io.IOException;
 import javax.swing.BorderFactory;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
-import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JLayeredPane;
 import javax.swing.JList;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
-import javax.swing.filechooser.FileNameExtensionFilter;
+import seasofyore.core.MatchConfig;
 import seasofyore.core.PlayerType;
 import seasofyore.core.SavedMatch;
 import seasofyore.ui.ChoppySeasPanel;
+import seasofyore.ui.SavedMatchDialogs;
 import seasofyore.ui.WoodPanel;
 
 /**
@@ -191,36 +188,19 @@ public class SeasOfYore
      */
     private void loadSavedGame()
     {
-        JFileChooser chooser = new JFileChooser();
-        chooser.setDialogTitle("Recover a voyage");
-        chooser.setFileFilter(new FileNameExtensionFilter(
-            "Seas of Yore saves (*." + SavedMatch.FILE_EXTENSION + ")",
-            SavedMatch.FILE_EXTENSION));
+        SavedMatch saved = SavedMatchDialogs.loadViaDialog(mainFrame);
+        if (saved == null)
+            return; // cancelled, or the dialog already reported the failure
 
-        if (chooser.showOpenDialog(mainFrame) != JFileChooser.APPROVE_OPTION)
-            return;
+        for (Component comp : mainPanel.getComponents())
+            if (comp instanceof GameController)
+                mainPanel.remove(comp);
 
-        File file = chooser.getSelectedFile();
-        try
-        {
-            SavedMatch saved = SavedMatch.load(file);
+        GameController controller = new GameController(saved,
+            () -> cardLayout.show(mainPanel, "TitleScreen"));
 
-            for (Component comp : mainPanel.getComponents())
-                if (comp instanceof GameController)
-                    mainPanel.remove(comp);
-
-            GameController controller = new GameController(saved,
-                () -> cardLayout.show(mainPanel, "TitleScreen"));
-
-            mainPanel.add(controller, "GamePanel");
-            cardLayout.show(mainPanel, "GamePanel");
-        }
-        catch (IOException | ClassNotFoundException ex)
-        {
-            JOptionPane.showMessageDialog(mainFrame,
-                "That log could not be read: " + ex.getMessage(),
-                "Load failed", JOptionPane.ERROR_MESSAGE);
-        }
+        mainPanel.add(controller, "GamePanel");
+        cardLayout.show(mainPanel, "GamePanel");
     }
 
     /**
@@ -386,9 +366,11 @@ public class SeasOfYore
     {
         if (type == null)
             return;
-        commanderLoreLabel.setText("<html><div style='width:360px'><b>"
-            + type.getNickname() + "</b> &mdash; " + type.getLore()
-            + "</div></html>");
+        commanderLoreLabel.setText("<html><div style='width:360px'><tt><b>"
+            + "<span style='color: #dd0000;'>Captain's Log: </span></b><i>"
+            + "<span style='font-weight: 900; color: #332421;'>"
+            + type.getNickname() + "</span></i><br>" + type.getLore()
+            + "</tt></div></html>");
     }
 
     /**
@@ -474,9 +456,11 @@ public class SeasOfYore
             if (comp instanceof GameController)
                 mainPanel.remove(comp);
 
-        GameController controller = controllerFactory.createCustomController(
-            britons, franks, salvoSelected, stoneAnimationsEnabled,
-            () -> cardLayout.show(mainPanel, "TitleScreen"));
+        MatchConfig config = new MatchConfig(britons, franks, null, null,
+            salvoSelected, stoneAnimationsEnabled);
+
+        GameController controller = controllerFactory.createController(
+            config, () -> cardLayout.show(mainPanel, "TitleScreen"));
 
         String panelName = "GamePanel";
         mainPanel.add(controller, panelName);
