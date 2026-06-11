@@ -229,11 +229,19 @@ public abstract class NetworkedMatchHandler extends AbstractMatchHandler
 
   /**
    * Sends the local shot across the water; the verdict arrives later as
-   * GRESULT and completes the outcome callback.
+   * GRESULT and completes the outcome callback. Exactly one shot may be
+   * in the air: a second one would overwrite the pending verdict slot
+   * and desynchronize the boards, so it is a programming error in the
+   * calling phase (which must lock firing until the verdict lands).
    */
   @Override
   public void resolveOutgoingShot( int x, int y, ShotOutcome outcome )
   {
+    if ( pendingOutcome != null )
+      throw new IllegalStateException(
+          "A shot is already awaiting its GRESULT; the firing phase "
+          + "must lock the panel until the verdict arrives." );
+
     pendingOutcome = outcome;
     sendQuietly( "GSHOT " + x + " " + y );
   }

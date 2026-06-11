@@ -8,6 +8,8 @@ import seasofyore.ui.FallingStoneAnimation;
 import seasofyore.ui.TerminalPanel;
 import java.awt.Graphics;
 import java.awt.Point;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * The remote opponent's turn, as seen from this screen: a passive phase.
@@ -23,9 +25,12 @@ import java.awt.Point;
 public class RemoteTurnPhase extends AbstractGamePhase
 {
   /**
-   * The incoming stone in flight, if the show is on.
+   * Every incoming stone still in flight. A single field would lose its
+   * grip on an earlier stone when a second arrived, leaving an animation
+   * cleanup() could not stop -- and a stone resolving after the turn has
+   * switched marks the wrong quadrant and spends the new turn's volley.
    */
-  private FallingStoneAnimation faller;
+  private final List< FallingStoneAnimation > fallers = new ArrayList< >();
 
   /**
    * Locks the screen down and announces the wait.
@@ -33,7 +38,7 @@ public class RemoteTurnPhase extends AbstractGamePhase
   @Override
   protected void onEnter()
   {
-    faller = null;
+    fallers.clear();
     controller.getCurrentQuadrantPanel().disableCellInteraction();
     controller.getNextQuadrantPanel().disableCellInteraction();
     controller.getTerminalPanel().setTurnButtonEnabled( false );
@@ -57,37 +62,39 @@ public class RemoteTurnPhase extends AbstractGamePhase
   {
     // during the enemy's turn, the local fleet is the "next" player's
     Point global = controller.getNextQuadrantPanel().getGlobalCellPosition( x, y );
-    faller = new FallingStoneAnimation( global, controller.getDragLayerPanel() );
-    faller.startAnimation( () ->
+    FallingStoneAnimation stone =
+        new FallingStoneAnimation( global, controller.getDragLayerPanel() );
+    fallers.add( stone );
+    stone.startAnimation( () ->
     {
-      faller = null;
+      fallers.remove( stone );
       controller.getDragLayerPanel().repaint();
       onLanded.run();
     });
   }
 
   /**
-   * Renders the incoming stone.
+   * Renders every incoming stone still in flight.
    *
    * @param g the Graphics object used for rendering
    */
   @Override
   public void render( Graphics g )
   {
-    if ( faller != null )
-      faller.draw( g );
+    for ( FallingStoneAnimation stone : fallers )
+      stone.draw( g );
   }
 
   /**
-   * Stops a stone mid-flight if the phase is torn down (e.g. by defeat).
+   * Stops every stone mid-flight if the phase is torn down (by GENDTURN
+   * or defeat): a stone that outlived the phase would resolve against
+   * the next turn's board state.
    */
   @Override
   public void cleanup()
   {
-    if ( faller != null )
-    {
-      faller.stop();
-      faller = null;
-    }
+    for ( FallingStoneAnimation stone : fallers )
+      stone.stop();
+    fallers.clear();
   }
 }

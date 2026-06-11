@@ -124,6 +124,13 @@ public class BattlePhase extends AbstractGamePhase
       return;
     }
 
+    // The shot is committed on the click, so the panel locks on the click.
+    // Locking in the verdict callback instead left the panel live for the
+    // whole flight -- offline that is one stone-fall, but networked it is
+    // stone + wire + the enemy's stone, and every click in that window
+    // launched another volley.
+    targeted.disableCellInteraction();
+
     if ( !controller.useStoneAnimations() )
     {
       // the player turned the show off: the shot lands instantly
@@ -169,7 +176,6 @@ public class BattlePhase extends AbstractGamePhase
         return;
       }
       controller.logToTerminal( NTPROMPT );
-      controller.getNextQuadrantPanel().disableCellInteraction();
       controller.getTerminalPanel().setTurnButtonEnabled( true );
     });
   }
