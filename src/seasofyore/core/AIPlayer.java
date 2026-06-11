@@ -122,6 +122,7 @@ public class AIPlayer extends Player
    * Overrides the random placement with more intelligent strategy-based placement.
    */
   @Override
+  @SuppressWarnings("empty-statement")
   public void randomVesselPlacement()
   {
     Ship[] ships = Ship.getListInstance();

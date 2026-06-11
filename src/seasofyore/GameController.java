@@ -727,7 +727,8 @@ public class GameController extends JLayeredPane implements QuadrantListener
   {
     Player localPlayer = matchHandler.getLocalPlayer();
     boolean defeat = ( localPlayer != null && localPlayer.getCiv() != winner );
-    Civilization featured = defeat ? localPlayer.getCiv() : winner;
+    Civilization featured = (defeat && localPlayer != null)
+            ? localPlayer.getCiv() : winner;
 
     // the featured commander's spoken name: an AI's tavern nickname, or the
     // titled name a human signed the muster roll with
