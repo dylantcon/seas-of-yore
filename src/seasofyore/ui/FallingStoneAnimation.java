@@ -30,18 +30,27 @@ public class FallingStoneAnimation
     private static final Color SHADOWCOLOR = new Color( 0, 0, 0, 70 );
 
     private static final int STONE_SIZE = 30;       // size of the stone
-    private static final int FRAME_MS = 6;          // delay between frames
 
-    // The fall is exponential: each frame the stone moves BASE_SPEED raised
-    // to (fallFrame / TENFOLD_FRAMES) pixels. BASE_SPEED is the classic
-    // constant stone speed, reused as the base of the exponent, so the stone
-    // lifts off at a crawl, crosses its old cruising speed mid-fall, and
-    // slams into the target still gaining speed.
-    private static final double BASE_SPEED = 10.0;  // px/frame, exponent base
-    private static final int TENFOLD_FRAMES = 30;   // frames per BASE_SPEED-fold gain
+    // Every tick repaints the whole drag layer, which is the most expensive
+    // thing a shot does -- especially under CheerpJ, where the original 6ms
+    // (~166fps) tick alone could throttle the browser. 15ms (~66fps) looks
+    // the same and costs 2.5x fewer paints; the motion constants below are
+    // rescaled so the wall-clock trajectory is unchanged: per-millisecond
+    // speed is SPEED_SCALE * BASE_SPEED^(t / 180ms) / FRAME_MS, and both
+    // 2.5/15 == 1/6 and 15*12 == 6*30 == 180 hold.
+    private static final int FRAME_MS = 15;         // delay between frames
 
-    private static final int SPLASH_FRAMES = 10;    // length of the splash
-    private static final int SPLASH_GROWTH = 3;     // ring radius gain, px/frame
+    // The fall is exponential: each frame the stone moves SPEED_SCALE times
+    // BASE_SPEED raised to (fallFrame / TENFOLD_FRAMES) pixels. BASE_SPEED
+    // is the classic constant stone speed, reused as the base of the
+    // exponent, so the stone lifts off at a crawl, crosses its old cruising
+    // speed mid-fall, and slams into the target still gaining speed.
+    private static final double BASE_SPEED = 10.0;  // exponent base
+    private static final double SPEED_SCALE = 2.5;  // px/frame at liftoff
+    private static final int TENFOLD_FRAMES = 12;   // frames per BASE_SPEED-fold gain
+
+    private static final int SPLASH_FRAMES = 4;     // length of the splash (~60ms)
+    private static final int SPLASH_GROWTH = 8;     // ring radius gain, px/frame
 
     private double stoneY;      // current Y position of the stone
     private int fallFrame;      // frames spent falling so far
@@ -66,7 +75,8 @@ public class FallingStoneAnimation
         {
           fallFrame++;
           // exponential speed-up: BASE_SPEED^(fallFrame / TENFOLD_FRAMES)
-          stoneY += Math.pow( BASE_SPEED, fallFrame / (double) TENFOLD_FRAMES );
+          stoneY += SPEED_SCALE
+                  * Math.pow( BASE_SPEED, fallFrame / (double) TENFOLD_FRAMES );
           if ( stoneY >= targetCell.y )
           {
             stoneY = targetCell.y;

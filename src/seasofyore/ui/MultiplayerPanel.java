@@ -59,12 +59,17 @@ public final class MultiplayerPanel extends JPanel
     /**
      * A connection stands and a handler wraps it: build the game.
      *
-     * @param connection the established, handshaken connection
-     * @param handler    the locality handler for this match
-     * @param localName  the local commander's name
+     * @param connection      the established, handshaken connection
+     * @param handler         the locality handler for this match
+     * @param localName       the local commander's name
+     * @param stoneAnimations whether attacks ride the falling-stone
+     *                        animation on this screen; purely local
+     *                        presentation, so each side chooses its own
+     *                        (a CheerpJ build may want it off for speed)
      */
     void onMatchReady( MatchConnector.Connection connection,
-                       MatchHandler handler, String localName );
+                       MatchHandler handler, String localName,
+                       boolean stoneAnimations );
 
     /**
      * The player backed out to the title screen.
@@ -90,11 +95,13 @@ public final class MultiplayerPanel extends JPanel
   private final JTextField roomField;
   private final JButton classicButton;
   private final JButton salvoButton;
+  private final JButton stoneButton;
   private final JLabel statusLabel;
   private final JButton cancelButton;
   private final List<JButton> actionButtons = new ArrayList<>();
 
   private boolean salvoSelected = false;
+  private boolean stoneAnimationsEnabled = true;
   private volatile Runnable cancelAction;
 
   /**
@@ -128,6 +135,17 @@ public final class MultiplayerPanel extends JPanel
     rulesRow.add( makeDeckLabel( "Rules (when hosting):" ) );
     rulesRow.add( classicButton );
     rulesRow.add( salvoButton );
+
+    // stone volleys: whether attacks ride the falling-stone animation.
+    // Unlike the rules, this is local-only presentation: each commander
+    // chooses for their own screen, so it applies hosting OR joining --
+    // the lever a browser (CheerpJ) player pulls for a faster match.
+    stoneButton = makeDeckToggle( "", 240 );
+    stoneButton.addActionListener( e ->
+    {
+      stoneAnimationsEnabled = !stoneAnimationsEnabled;
+      refreshStoneToggle();
+    });
 
     // LAN: host listens, the other side dials an address
     JButton hostLanButton = makeDeckToggle( "Host on this Network", 220 );
@@ -184,12 +202,14 @@ public final class MultiplayerPanel extends JPanel
 
     gblAdd( deck, fieldRow( "Thy name, Commander:", nameField ), 0, STD_P );
     gblAdd( deck, rulesRow, 1, STD_P );
-    gblAdd( deck, lanRow, 2, STD_P );
-    gblAdd( deck, relayRow, 3, STD_P );
-    gblAdd( deck, statusLabel, 4, STD_P );
-    gblAdd( deck, cancelButton, 5, STD_P );
+    gblAdd( deck, stoneButton, 2, STD_P );
+    gblAdd( deck, lanRow, 3, STD_P );
+    gblAdd( deck, relayRow, 4, STD_P );
+    gblAdd( deck, statusLabel, 5, STD_P );
+    gblAdd( deck, cancelButton, 6, STD_P );
 
     refreshModeToggle();
+    refreshStoneToggle();
     setStatus( "Choose thy crossing: a direct line on this network, or a "
              + "room code through the javalab relay." );
 
@@ -367,7 +387,7 @@ public final class MultiplayerPanel extends JPanel
   {
     setBusy( false, null );
     setStatus( "Connected to " + connection.remoteName + "!" );
-    listener.onMatchReady( connection, handler, name );
+    listener.onMatchReady( connection, handler, name, stoneAnimationsEnabled );
   }
 
   /**
@@ -500,6 +520,13 @@ public final class MultiplayerPanel extends JPanel
   {
     styleToggle( classicButton, !salvoSelected );
     styleToggle( salvoButton, salvoSelected );
+  }
+
+  private void refreshStoneToggle()
+  {
+    stoneButton.setText(
+        "Stone Volleys: " + ( stoneAnimationsEnabled ? "SHOWN" : "INSTANT" ) );
+    styleToggle( stoneButton, stoneAnimationsEnabled );
   }
 
   private void styleToggle( JButton button, boolean selected )

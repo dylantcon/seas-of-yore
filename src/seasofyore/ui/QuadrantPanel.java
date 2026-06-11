@@ -79,11 +79,6 @@ public class QuadrantPanel extends JLayeredPane
     private GameController gameController;
 
     /**
-     * Default image path for missing resources.
-     */
-    private final String nullPath = "/images/waterdark.gif";
-
-    /**
      * Cache for ship images based on civilization, ship type, and direction.
      */
     private final Map<String, ImageIcon> imageCache = new HashMap<>();
@@ -458,8 +453,9 @@ public class QuadrantPanel extends JLayeredPane
     if (imgURL == null)
     {
       System.err.println( "Missing sprite: " + imgpath );
-      imgURL = getClass().getResource( nullPath );
-      return new ImageIcon( imgURL );
+      // a frame of the dark pixel water stands in, so the gap reads as
+      // open sea rather than a broken image
+      return new ImageIcon( PixelWaterAnimation.darkWater().getFrame( 0 ) );
     }
     return new ImageIcon( imgURL );
   }

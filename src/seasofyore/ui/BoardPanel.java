@@ -7,15 +7,22 @@ import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
-import java.awt.Image;
 import java.awt.Insets;
-import javax.swing.ImageIcon;
 import javax.swing.JPanel;
+import javax.swing.Timer;
 
 /**
- * Represents the main game board panel, managing the display of friendly and 
+ * Represents the main game board panel, managing the display of friendly and
  * enemy QuadrantPanels, as well as background animations and layout.
- * 
+ * <p>
+ * The water behind the quadrants is a {@link PixelWaterAnimation}: a small
+ * set of pre-rendered frames stretch-blitted at a deliberately low rate.
+ * Its predecessor -- two full-panel animated GIFs -- repainted the board at
+ * the GIFs' own frame rate and re-scaled every frame in software, which
+ * under CheerpJ kept the single browser thread busy enough to starve a
+ * relay connection. Here the panel owns the clock instead: one Swing timer,
+ * one frame counter, two blits per paint.
+ *
  * @author dylan connolly
  */
 public class BoardPanel extends JPanel
@@ -29,34 +36,26 @@ public class BoardPanel extends JPanel
    */
   private QuadrantPanel enemyPane;
   /**
-   * The light water animation displayed in the background.
+   * The light water loop painted behind the friendly (lower) half.
    */
-  protected final ImageIcon waterAnimation;
+  private final PixelWaterAnimation lightWater;
   /**
-   * The dark water animation displayed in the background.
+   * The dark water loop painted behind the enemy (upper) half.
    */
-  private final ImageIcon waterAnimationDark;
-  
+  private final PixelWaterAnimation darkWater;
+
   /**
-   * Path to the light water animation resource.
+   * Advances the water loop. Unlike the old GIFs' observer-driven repaints,
+   * this timer makes the animation's cost explicit and tunable; it runs only
+   * while the panel is in a displayable hierarchy (see addNotify).
    */
-  private final String waterGif = "/images/waterlight.gif";
-  
-   /**
-   * Path to the dark water animation resource.
-   */
-  private final String waterDarkGif = "/images/waterdark.gif";
-  
+  private final Timer waterTimer;
+
   /**
-   * The scaled version of the light water animation image.
+   * The current frame of the water loop.
    */
-  protected Image scaledWaterLight;
-  
-  /**
-   * The scaled version of the dark water animation image.
-   */
-  protected Image scaledWaterDark;
-  
+  private int waterFrame = 0;
+
   /**
    * Indicates whether the panels have already been added to the layout.
    */
@@ -83,14 +82,43 @@ public class BoardPanel extends JPanel
   {
     this.friendlyPane = friend;
     this.enemyPane = enemy;
-    
-    // load water animation
-    waterAnimation = new ImageIcon( getClass().getResource( waterGif ) );
-    waterAnimationDark = new ImageIcon( getClass().getResource( waterDarkGif ) );
-    
+
+    // the frames are pre-rendered once per session and shared between boards
+    lightWater = PixelWaterAnimation.lightWater();
+    darkWater = PixelWaterAnimation.darkWater();
+
+    waterTimer = new Timer( PixelWaterAnimation.SUGGESTED_FRAME_MS, e ->
+    {
+      waterFrame++;
+      // a hidden board (e.g. behind another card) skips even the repaint
+      if ( isShowing() )
+        repaint();
+    });
+
     // use GridBagLayout for increased flexibility
     this.setLayout( new GridBagLayout() );
     this.addAllPanels();
+  }
+
+  /**
+   * Starts the water clock when the panel joins a displayable hierarchy.
+   */
+  @Override
+  public void addNotify()
+  {
+    super.addNotify();
+    waterTimer.start();
+  }
+
+  /**
+   * Stops the water clock when the panel leaves the hierarchy, so discarded
+   * boards do not animate (or leak) forever.
+   */
+  @Override
+  public void removeNotify()
+  {
+    waterTimer.stop();
+    super.removeNotify();
   }
   
   /**
@@ -231,7 +259,10 @@ public class BoardPanel extends JPanel
   }
   
   /**
-   * Paints the component, including background water animations and a dividing line.
+   * Paints the component: one stretch-blit of pixel water per half (dark
+   * seas for the enemy above, light for the friendly fleet below) and the
+   * dividing line. No ImageObserver is involved, so nothing here can
+   * schedule repaints behind the timer's back.
    *
    * @param g the Graphics object used for drawing
    */
@@ -240,18 +271,15 @@ public class BoardPanel extends JPanel
   {
     super.paintComponent( g );
 
-    scaledWaterLight = waterAnimation.getImage();
-    scaledWaterDark = waterAnimationDark.getImage();
-    
     int w = getWidth();
     int h = getHeight();
 
-    g.drawImage( scaledWaterDark, 0, 0, w, h / 2, this );
-    g.drawImage( scaledWaterLight, 0, h / 2, w, h, this );
-   
+    darkWater.paintFrame( g, waterFrame, 0, 0, w, h / 2 );
+    lightWater.paintFrame( g, waterFrame, 0, h / 2, w, h - h / 2 );
+
     // draw dividing line between upper and lower areas
     g.setColor( Color.BLACK );
-    int middleY = getHeight() / 2;
-    g.drawLine( 0, middleY, getWidth(), middleY ); // horizontal line    
+    int middleY = h / 2;
+    g.drawLine( 0, middleY, w, middleY ); // horizontal line
   }
 }

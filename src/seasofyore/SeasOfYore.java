@@ -38,6 +38,11 @@ public class SeasOfYore
     private CardLayout cardLayout;
     private JPanel mainPanel;
 
+    // the shared menu backdrop and the layered pane holding it: kept as
+    // fields so the backdrop can be detached while a game is on screen
+    private ChoppySeasPanel seas;
+    private JLayeredPane layeredRoot;
+
     // Navigation panels. The battle-setup screen can express every local
     // matchup (hot-seat, solo vs any AI tier, AI-vs-AI spectating, Classic or
     // SALVO), so it IS the mode selection; the old per-mode screens are gone.
@@ -117,9 +122,9 @@ public class SeasOfYore
         // panel to the back (DEFAULT_LAYER) and the interactive cards to the
         // front (PALETTE_LAYER). JLayeredPane has no layout manager, so we size
         // both children to fill the frame on every (re)layout.
-        ChoppySeasPanel seas = new ChoppySeasPanel();
+        seas = new ChoppySeasPanel();
 
-        JLayeredPane layeredRoot = new JLayeredPane()
+        layeredRoot = new JLayeredPane()
         {
             @Override
             public void doLayout()
@@ -139,8 +144,41 @@ public class SeasOfYore
      */
     private void show()
     {
-        cardLayout.show(mainPanel, "TitleScreen");
+        showScreen("TitleScreen");
         mainFrame.setVisible(true);
+    }
+
+    /**
+     * Switches the visible card, parking the animated menu seas whenever the
+     * game screen is up. The game's opaque panels cover the backdrop
+     * completely, but Swing has no occlusion culling: a hidden-but-attached
+     * ChoppySeasPanel would keep repainting the full window -- and therefore
+     * recompositing the entire game UI stacked above it -- sixty times a
+     * second. Detaching it from the hierarchy (rather than just hiding it)
+     * fires its removeNotify, which stops its repaint timer outright; under
+     * CheerpJ that EDT time is what keeps a relay connection fed. Reattaching
+     * on the way back to the menus restarts the animation through addNotify.
+     *
+     * @param name the card to show
+     */
+    private void showScreen(String name)
+    {
+        boolean inGame = "GamePanel".equals(name);
+        boolean attached = seas.getParent() != null;
+
+        if (inGame && attached)
+        {
+            layeredRoot.remove(seas);
+            layeredRoot.repaint();
+        }
+        else if (!inGame && !attached)
+        {
+            layeredRoot.add(seas, JLayeredPane.DEFAULT_LAYER);
+            layeredRoot.revalidate(); // re-run doLayout to size the backdrop
+            layeredRoot.repaint();
+        }
+
+        cardLayout.show(mainPanel, name);
     }
 
     /**
@@ -168,9 +206,9 @@ public class SeasOfYore
         JButton quitButton = createMenuButton("Quit to Desktop", PARCHMENT, BLOOD_RED);
 
         // Add action listeners
-        playButton.addActionListener(e -> cardLayout.show(mainPanel, "BattleSetup"));
+        playButton.addActionListener(e -> showScreen("BattleSetup"));
         loadButton.addActionListener(e -> loadSavedGame());
-        multiplayerButton.addActionListener(e -> cardLayout.show(mainPanel, "Multiplayer"));
+        multiplayerButton.addActionListener(e -> showScreen("Multiplayer"));
         quitButton.addActionListener(e -> System.exit(0));
 
         // Stack everything as one packed, centered column
@@ -201,10 +239,10 @@ public class SeasOfYore
                 mainPanel.remove(comp);
 
         GameController controller = new GameController(saved,
-            () -> cardLayout.show(mainPanel, "TitleScreen"));
+            () -> showScreen("TitleScreen"));
 
         mainPanel.add(controller, "GamePanel");
-        cardLayout.show(mainPanel, "GamePanel");
+        showScreen("GamePanel");
     }
 
     /**
@@ -305,7 +343,7 @@ public class SeasOfYore
         JButton beginButton = createMenuButton("Begin Battle", Color.WHITE, SEA_BLUE);
         JButton backButton = createMenuButton("Back", INK, PARCHMENT);
         beginButton.addActionListener(e -> launchBattle());
-        backButton.addActionListener(e -> cardLayout.show(mainPanel, "TitleScreen"));
+        backButton.addActionListener(e -> showScreen("TitleScreen"));
 
         gblAdd(panel, headerLabel, 0, HEADER_P);
         gblAdd(panel, deck, 1, STD_P);
@@ -460,15 +498,15 @@ public class SeasOfYore
             @Override
             public void onMatchReady(seasofyore.match.MatchConnector.Connection conn,
                                      seasofyore.match.MatchHandler handler,
-                                     String localName)
+                                     String localName, boolean stoneAnimations)
             {
-                startNetworkedMatch(conn, handler, localName);
+                startNetworkedMatch(conn, handler, localName, stoneAnimations);
             }
 
             @Override
             public void onBack()
             {
-                cardLayout.show(mainPanel, "TitleScreen");
+                showScreen("TitleScreen");
             }
         });
     }
@@ -477,13 +515,17 @@ public class SeasOfYore
      * Builds and shows the networked game once a connection stands. The
      * host commands the Britons; the joiner, the Franks.
      *
-     * @param conn    the established connection
-     * @param handler the locality handler wrapping its transport
-     * @param name    the local commander's name
+     * @param conn            the established connection
+     * @param handler         the locality handler wrapping its transport
+     * @param name            the local commander's name
+     * @param stoneAnimations whether attacks ride the falling-stone
+     *                        animation locally; unlike the salvo rule this
+     *                        is not negotiated, each screen presents shots
+     *                        its own way
      */
     private void startNetworkedMatch(seasofyore.match.MatchConnector.Connection conn,
                                      seasofyore.match.MatchHandler handler,
-                                     String name)
+                                     String name, boolean stoneAnimations)
     {
         for (Component comp : mainPanel.getComponents())
             if (comp instanceof GameController)
@@ -491,15 +533,15 @@ public class SeasOfYore
 
         MatchConfig config = conn.host
             ? new MatchConfig(PlayerType.HUMAN, PlayerType.REMOTE,
-                              name, conn.remoteName, conn.salvo, true)
+                              name, conn.remoteName, conn.salvo, stoneAnimations)
             : new MatchConfig(PlayerType.REMOTE, PlayerType.HUMAN,
-                              conn.remoteName, name, conn.salvo, true);
+                              conn.remoteName, name, conn.salvo, stoneAnimations);
 
         GameController controller = new GameController(config, handler,
-            () -> cardLayout.show(mainPanel, "TitleScreen"));
+            () -> showScreen("TitleScreen"));
 
         mainPanel.add(controller, "GamePanel");
-        cardLayout.show(mainPanel, "GamePanel");
+        showScreen("GamePanel");
     }
     /**
      * Creates a combo box listing the player types (human and each AI tier),
@@ -611,11 +653,11 @@ public class SeasOfYore
             britonsName, franksName, salvoSelected, stoneAnimationsEnabled);
 
         GameController controller = controllerFactory.createController(
-            config, () -> cardLayout.show(mainPanel, "TitleScreen"));
+            config, () -> showScreen("TitleScreen"));
 
         String panelName = "GamePanel";
         mainPanel.add(controller, panelName);
-        cardLayout.show(mainPanel, panelName);
+        showScreen(panelName);
     }
 
     /**
