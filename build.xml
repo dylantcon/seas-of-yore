@@ -20,9 +20,9 @@
         <fileset dir="src/images" includes="**/*" />
     </copy>
 
-    <!-- Include Javadoc -->
+    <!-- Include Javadoc, if it has been generated (skip silently after a clean) -->
     <copy todir="${build.classes.dir}/javadoc">
-        <fileset dir="dist/javadoc" includes="**/*" />
+        <fileset dir="${dist.javadoc.dir}" includes="**/*" erroronmissingdir="false" />
     </copy>
 
     <!-- Include source code -->
