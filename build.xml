@@ -31,8 +31,18 @@
     </copy>
 </target>
 
-    <!-- Optional: Post-JAR target for verification -->
+    <!-- Repack the dist jar as a "fat" jar: merge in JavalabRelay's classes
+         so dist/SeasOfYore.jar runs standalone, with no lib/ folder needed. -->
     <target name="-post-jar">
-        <echo message="Custom JAR built successfully with README, Javadoc, source, and resources included." />
+        <jar destfile="${dist.dir}/fat.jar.tmp" duplicate="preserve">
+            <zipfileset src="${dist.jar}" excludes="META-INF/MANIFEST.MF"/>
+            <zipfileset src="${reference.JavalabRelay.jar}" excludes="META-INF/**"/>
+            <manifest>
+                <attribute name="Main-Class" value="${main.class}"/>
+            </manifest>
+        </jar>
+        <move file="${dist.dir}/fat.jar.tmp" tofile="${dist.jar}"/>
+        <delete dir="${dist.dir}/lib"/>
+        <echo message="Fat JAR built: ${dist.jar} (includes JavalabRelay, README, Javadoc, source, and resources)"/>
     </target>
 </project>
