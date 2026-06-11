@@ -27,8 +27,8 @@ public enum PlayerType
 
   /** An AI using the Medium (heuristic) strategy. */
   AI_MEDIUM( "Medium AI", "Bosun Bramble",
-    "An old bosun with a nose fer blood in the water. "
-    + "This salty dog be clever, ye best keep yer wits about ye. "
+    "A weather'd bosun with a nose fer blood in the water. "
+    + "This salty buccaneer be clever, an' he'll give ye no quarter. "
     + "Bramble wanders 'til he strikes wood, then he's after ye, plank-by-"
     + "plank, 'til yer hull gives way to the cold, foamy sea.", AIDifficulty.MEDIUM ),
 
@@ -41,11 +41,11 @@ public enum PlayerType
 
   /** An AI using the Extreme (joint Monte Carlo + stealth placement) strategy. */
   AI_EXTREME( "Extreme AI", "The Drowned King",
-    "A legend, say some; a lie, say others. But the tales agree on this: "
-    + "somethin' ancient watches from beneath the brine, an' it knows where "
-    + "thy keels rest afore thou dost. No chart explains it. No fleet has "
-    + "outlasted it. Face the Drowned King, an' yer name joins the myths at "
-    + "the bottom o' the sea.", AIDifficulty.EXTREME ),
+    "A legend, say one; a mere yarn, say another. Some tales be bilge; not this'n. "
+    + "Heed my warning: A spectre be in these waters, under countless fathoms o' "
+    + "the murky brine. It knowst where thy keels rest afore thou dost. No chart"
+    + "explain'd it, nor a fleet, outlasted it. Face the Drowned King, an' yer "
+    + "name joins the myths at the bottom o' the sea.", AIDifficulty.EXTREME ),
 
   /**
    * A human at another screen, whose moves arrive over the wire. Never

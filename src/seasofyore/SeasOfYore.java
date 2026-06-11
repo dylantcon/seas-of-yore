@@ -193,17 +193,17 @@ public class SeasOfYore
 
         JLabel titleLabel = makeChipLabel("Seas of Yore",
             new Font("Serif", Font.BOLD | Font.ITALIC, 60), GOLD, INK);
-        JLabel subtitleLabel = makeChipLabel("~ Developed by Dylan Connolly ~",
+        JLabel subtitleLabel = makeChipLabel(" Developed by dylantcon ",
             new Font("Serif", Font.ITALIC, 18), INK, PARCHMENT);
 
         // Create buttons. Battle setup covers every playable matchup, so the
         // title goes straight there; networked play keeps a (disabled) seat
         // at the table until it exists.
-        JButton playButton = createMenuButton("Set Sail", Color.WHITE, SEA_BLUE);
+        JButton playButton = createMenuButton("Weigh Yer Anchor", Color.WHITE, SEA_BLUE);
         JButton loadButton = createMenuButton("Recover a Voyage", INK, PARCHMENT);
-        JButton multiplayerButton = createMenuButton("Across the Water",
+        JButton multiplayerButton = createMenuButton("Board or Be Boarded",
                                                      INK, PARCHMENT);
-        JButton quitButton = createMenuButton("Quit to Desktop", PARCHMENT, BLOOD_RED);
+        JButton quitButton = createMenuButton("Belay Yer Swashbucklin'", PARCHMENT, BLOOD_RED);
 
         // Add action listeners
         playButton.addActionListener(e -> showScreen("BattleSetup"));
