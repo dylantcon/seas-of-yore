@@ -283,7 +283,6 @@ public class ChoppySeasPanel extends JPanel
     return new WaveLayer[]
     {
       //             base   amp    wavelen  speed  colour
-      new WaveLayer( 0.42f, 0.025f, 0.55f,  0.50f, new Color( 0x2C4A63 ) ),
       new WaveLayer( 0.55f, 0.030f, 0.42f,  0.70f, new Color( 0x244056 ) ),
       new WaveLayer( 0.68f, 0.035f, 0.33f,  0.95f, new Color( 0x1C3548 ) ),
       new WaveLayer( 0.80f, 0.045f, 0.26f,  1.25f, new Color( 0x142A3A ) ),

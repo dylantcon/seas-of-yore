@@ -100,10 +100,13 @@ public class TerminalPanel extends JPanel
   private static final Color PROMPT_FG = new Color( 158, 134, 82 );
 
   /** Fixed pixel sizes for the strip's interior layout. */
-  private static final int PANEL_H = 85;
+  private static final int PANEL_H = 100;
   private static final int BUTTON_W = 135;
-  private static final int STATUS_H = 18;
+  private static final int STATUS_H = 14;
   private static final int CHAT_H = 24;
+
+  /** The one font every part of the terminal strip speaks in. */
+  private static final Font TERM_FONT = new Font( "Monospaced", Font.BOLD, 10 );
 
   private final GameController controller;
   private final JTextPane terminalPane;
@@ -126,7 +129,7 @@ public class TerminalPanel extends JPanel
     // the log itself: a styled pane so ANSI colour runs render faithfully
     terminalPane = new JTextPane();
     terminalPane.setEditable( false );
-    terminalPane.setFont( new Font( "Monospaced", Font.BOLD, 12 ) );
+    terminalPane.setFont( TERM_FONT );
     terminalPane.setForeground( TERM_FG );
     terminalPane.setBackground( TERM_BG );
     terminalPane.setCaretColor( TERM_FG );
@@ -141,7 +144,7 @@ public class TerminalPanel extends JPanel
 
     // the status line: who commands the current turn
     statusLabel = new javax.swing.JLabel();
-    statusLabel.setFont( new Font( "Monospaced", Font.BOLD, 12 ) );
+    statusLabel.setFont( TERM_FONT );
     statusLabel.setForeground( PALETTE[3] );
     statusLabel.setBackground( new Color( 24, 18, 32 ) );
     statusLabel.setOpaque( true );
@@ -149,7 +152,7 @@ public class TerminalPanel extends JPanel
 
     // the chat line: hidden until a match handler that supports chat appears
     chatField = new JTextField();
-    chatField.setFont( new Font( "Monospaced", Font.BOLD, 12 ) );
+    chatField.setFont( TERM_FONT );
     chatField.setForeground( PALETTE[6] );
     chatField.setBackground( new Color( 20, 16, 28 ) );
     chatField.setCaretColor( PALETTE[6] );
@@ -385,7 +388,7 @@ public class TerminalPanel extends JPanel
                      ? type.getNickname() + "  [" + type.getLabel() + "]"
                      : controller.getCurrentPlayer().getTitledName();
 
-    statusLabel.setText( civ + "  ·  " + commander );
+    statusLabel.setText( civ + "  <>  " + commander );
   }
 
   @Override
