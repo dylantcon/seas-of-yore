@@ -809,6 +809,16 @@ public class GameController extends JLayeredPane implements QuadrantListener
   private void addGameplayElements()
   {
     sidebarPanel = new SidebarPanel();
+
+    // the menu's rotate buttons reach the held ship through the phase
+    // seam: only the placement phase holds one, every other phase
+    // inherits the do-nothing default
+    sidebarPanel.setRotationHandler( clockwise ->
+    {
+      if ( currentPhase != null )
+        currentPhase.rotateHeldShip( clockwise );
+    });
+
     this.initializeBoardPanel();
 
     gamePanel.add( boardPanel, BorderLayout.CENTER );

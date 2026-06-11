@@ -69,6 +69,19 @@ public interface GamePhase
   }
 
   /**
+   * Rotates the ship the player is currently holding, if this phase has
+   * one. The button-driven twin of the placement phase's scroll-wheel
+   * rotation, for screens without a wheel (touch devices playing in a
+   * browser). Phases that hold no ship ignore it.
+   *
+   * @param clockwise true to rotate clockwise; false for counterclockwise
+   */
+  default void rotateHeldShip( boolean clockwise )
+  {
+
+  }
+
+  /**
    * Freezes the phase's timers and animations while the game is paused.
    * Phases that drive nothing time-based need not override this.
    */

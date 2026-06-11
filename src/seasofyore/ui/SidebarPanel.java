@@ -42,6 +42,20 @@ public class SidebarPanel extends JLayeredPane
    * The toggle button to open and close the sidebar.
    */
   private final CustomButton toggleButton;
+
+  /**
+   * The rotate-ship buttons at the foot of the menu: touch-friendly twins
+   * of the scroll-wheel rotation, for screens that have no wheel (phones
+   * playing the game in a browser).
+   */
+  private final CustomButton rotateCcwButton;
+  private final CustomButton rotateCwButton;
+
+  /**
+   * Where rotate-button presses are delivered. The sidebar knows nothing of
+   * phases or held ships; the controller installs a handler that does.
+   */
+  private RotationHandler rotationHandler;
   
   /**
    * A map of ship types to their corresponding slot labels.
@@ -81,6 +95,12 @@ public class SidebarPanel extends JLayeredPane
    * Path to the navy icon image used for the toggle button.
    */
   private static final String NAVYPATH = "/images/navyicon.png";
+
+  /**
+   * Paths to the rotate-button arrow icons.
+   */
+  private static final String CCWPATH = "/images/rotateccw.png";
+  private static final String CWPATH = "/images/rotatecw.png";
   
   /**
    * The wood texture image.
@@ -109,6 +129,14 @@ public class SidebarPanel extends JLayeredPane
    */
   private static final int TOGGLE_BUTTON_HEIGHT = TOGGLE_BUTTON_WIDTH;
   
+  /**
+   * The side length of each rotate button, and the padding around the pair.
+   * The slot column reserves a strip of this combined height at the bottom
+   * so the fleet never overlaps the buttons.
+   */
+  private static final int ROTATE_BUTTON_DIM = 40;
+  private static final int ROTATE_BUTTON_PAD = 10;
+
   /**
    * The number of pixels moved per step during sidebar animation.
    */
@@ -149,6 +177,15 @@ public class SidebarPanel extends JLayeredPane
     // add toggle button
     toggleButton = createToggleButton();
     add( toggleButton, JLayeredPane.PALETTE_LAYER );
+
+    // add the rotate pair above the slot container, so populateShipSlots'
+    // removeAll never sweeps them away with the fleet
+    rotateCcwButton = createRotateButton( CCWPATH, false,
+                                          "Rotate ship counterclockwise" );
+    rotateCwButton = createRotateButton( CWPATH, true,
+                                         "Rotate ship clockwise" );
+    add( rotateCcwButton, JLayeredPane.PALETTE_LAYER );
+    add( rotateCwButton, JLayeredPane.PALETTE_LAYER );
     
     resetAllSlots();
     
@@ -215,6 +252,54 @@ public class SidebarPanel extends JLayeredPane
     button.addActionListener( e -> toggleSidebar() );
     return button;
   }
+
+  /**
+   * Receives presses of the sidebar's rotate buttons. The handler decides
+   * what (if anything) there is to rotate; during ship placement that is
+   * the held ship, in every other phase the press falls on deaf ears.
+   */
+  public interface RotationHandler
+  {
+    /**
+     * Rotates whatever the player is currently holding.
+     *
+     * @param clockwise true to rotate clockwise; false for counterclockwise
+     */
+    void rotateHeldShip( boolean clockwise );
+  }
+
+  /**
+   * Installs the recipient of rotate-button presses.
+   *
+   * @param handler the handler to deliver presses to
+   */
+  public void setRotationHandler( RotationHandler handler )
+  {
+    this.rotationHandler = handler;
+  }
+
+  /**
+   * Creates one of the rotate buttons at the foot of the menu.
+   *
+   * @param iconPath  the classpath location of the arrow icon
+   * @param clockwise the rotation direction this button commands
+   * @param tip       the tooltip text
+   * @return the configured button
+   */
+  private CustomButton createRotateButton( String iconPath, boolean clockwise,
+                                           String tip )
+  {
+    CustomButton button = new CustomButton(
+        new ImageIcon( getClass().getResource( iconPath ) ) );
+    button.setFocusPainted( false );
+    button.setToolTipText( tip );
+    button.addActionListener( e ->
+    {
+      if ( rotationHandler != null )
+        rotationHandler.rotateHeldShip( clockwise );
+    });
+    return button;
+  }
   
  /**
    * Adjusts the layout of the sidebar, including the position of ship slots
@@ -235,12 +320,22 @@ public class SidebarPanel extends JLayeredPane
     );
     // adjust toggle button position dynamically
     toggleButton.setBounds
-    ( 
+    (
       0,
       sbH / 2 - TOGGLE_BUTTON_HEIGHT / 2,
       TOGGLE_BUTTON_WIDTH,
       TOGGLE_BUTTON_HEIGHT
     );
+
+    // the rotate pair sits centred at the foot of the slot column, in the
+    // strip resizeShipSlots reserves beneath the fleet
+    int btnY = sbH - ROTATE_BUTTON_PAD - ROTATE_BUTTON_DIM;
+    int mid = TOGGLE_BUTTON_WIDTH + ( sbW - TOGGLE_BUTTON_WIDTH ) / 2;
+    rotateCcwButton.setBounds( mid - ROTATE_BUTTON_DIM - ROTATE_BUTTON_PAD / 2,
+                               btnY, ROTATE_BUTTON_DIM, ROTATE_BUTTON_DIM );
+    rotateCwButton.setBounds( mid + ROTATE_BUTTON_PAD / 2,
+                              btnY, ROTATE_BUTTON_DIM, ROTATE_BUTTON_DIM );
+
     resizeShipSlots( sbW, sbH );
   }
 
@@ -253,8 +348,10 @@ public class SidebarPanel extends JLayeredPane
    */
   private void resizeShipSlots( int sbW, int sbH )
   {
-    // adjust ship slots dynamically
-    int sH = sbH / ShipType.values().length;
+    // adjust ship slots dynamically, keeping the fleet clear of the
+    // rotate-button strip at the bottom
+    int barH = ROTATE_BUTTON_DIM + 2 * ROTATE_BUTTON_PAD;
+    int sH = ( sbH - barH ) / ShipType.values().length;
     int sW = sbW - TOGGLE_BUTTON_WIDTH - 20;
     int yPos = 10; // start padding from top
     for ( Map.Entry< ShipType, JLabel > entry : shipSlots.entrySet() )

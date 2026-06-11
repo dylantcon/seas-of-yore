@@ -56,7 +56,8 @@ public class ShipPlacementPhase extends AbstractGamePhase
    * Introduction message for the ship placement phase.
    */  
   private final String intro = "Use the ship menu to pick up ships. To rotate your"
-                              + " placement, use the scroll wheel.";
+                              + " placement, use the scroll wheel or the rotate"
+                              + " buttons at the foot of the menu.";
   
   /**
    * Initializes the phase state and UI when entered.
@@ -190,6 +191,29 @@ public class ShipPlacementPhase extends AbstractGamePhase
         controller.logToTerminal( noShipIns );
     }
   }
+  /**
+   * Rotates the held ship on behalf of the sidebar's rotate buttons -- the
+   * touch-friendly twin of the scroll-wheel rotation in handleInput, since
+   * a phone browser has no wheel to scroll.
+   *
+   * @param clockwise true to rotate clockwise; false for counterclockwise
+   */
+  @Override
+  public void rotateHeldShip( boolean clockwise )
+  {
+    if ( draggableShip == null )
+    {
+      controller.logToTerminal( noShipIns );
+      return;
+    }
+
+    if ( clockwise )
+      draggableShip.rotateClockwise();
+    else
+      draggableShip.rotateCounterClockwise();
+    controller.getDragLayerPanel().repaint();
+  }
+
   /**
    * Updates the phase state, transitioning to the battle phase if placement is complete.
    */
