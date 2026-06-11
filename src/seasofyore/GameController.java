@@ -783,12 +783,14 @@ public class GameController extends JLayeredPane implements QuadrantListener
     // Update the turn indicator
     terminal.updateTurnButtonIcon();
 
-    // Only hot-seat games rearrange the screen: the bottom slot is the
-    // revealed one, so it must follow whichever human is acting. With at most
-    // one human the arrangement never changes -- the lone human (or, when
-    // spectating, the Britons) keeps the bottom slot for the whole game, and
-    // the phases resolve panels by owner rather than by slot.
-    if ( board.getHumanCount() == 2 )
+    // Whether the screen rearranges is the match handler's call, and it is
+    // the same question the curtain answers: the bottom slot is the revealed
+    // one, so it follows the acting human only when two humans share this
+    // physical screen. Counting humans on the board is not enough -- a
+    // networked match has two human players but seats only one here, so the
+    // local player keeps the bottom slot for the whole game, and the phases
+    // resolve panels by owner rather than by slot.
+    if ( matchHandler.showsCurtain() )
       boardPanel.swapPanels();
   }
   

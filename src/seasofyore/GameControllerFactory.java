@@ -32,11 +32,17 @@ public class GameControllerFactory
 
   /**
    * Creates a GameController instance configured for one of the legacy fixed
-   * game modes, expressed as the equivalent match configuration.
+   * game modes, expressed as the equivalent match configuration. Only the
+   * local modes can be built this way: a networked match needs a live
+   * connection, so it is constructed directly via
+   * {@code GameController( config, handler, returnTitle )} once the
+   * connection screen has produced a handler.
    *
    * @param mode the game mode to create a controller for
    * @param returnTitle callback to return to the title screen
    * @return a properly configured GameController instance
+   * @throws IllegalArgumentException for the multiplayer modes, which cannot
+   *         be expressed as a mode alone
    */
   public GameController createController( GameMode mode, Runnable returnTitle )
   {
@@ -53,9 +59,11 @@ public class GameControllerFactory
       case AI_HARD:
         return createController( soloVersus( PlayerType.AI_HARD ), returnTitle );
       case MULTIPLAYER_LAN:
-        throw new UnsupportedOperationException( "Multiplayer mode not yet implemented" );
       case MULTIPLAYER_ONLINE:
-        throw new UnsupportedOperationException( "Multiplayer mode not yet implemented" );
+        throw new IllegalArgumentException(
+            "Networked matches are not built from a GameMode: they need a live"
+          + " connection. Use GameController( config, handler, returnTitle )"
+          + " once the MatchConnector handshake has produced a handler." );
       default:
         throw new IllegalArgumentException( "Unknown game mode: " + mode );
     }
