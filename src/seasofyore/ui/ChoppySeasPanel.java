@@ -13,6 +13,7 @@ import java.awt.Polygon;
 import java.awt.RenderingHints;
 import java.awt.event.ActionEvent;
 import java.awt.geom.AffineTransform;
+import java.awt.image.BufferedImage;
 import javax.swing.ImageIcon;
 import javax.swing.JPanel;
 import javax.swing.Timer;
@@ -28,10 +29,17 @@ import javax.swing.Timer;
  * as depth. A single Swing {@link Timer} advances a shared clock and triggers a
  * repaint; nothing else needs to poke the panel.
  * <p>
- * Each wave's surface is the sum of two sine waves of different frequency moving
- * in opposite directions. A single sine is too smooth and regular to look like
- * the sea; adding a faster, counter-moving ripple breaks the symmetry and gives
- * the crests their irregular, "choppy" character.
+ * Each wave's surface is the sum of a swell sine and a faster ripple at 2.5x
+ * its frequency; a single sine is too smooth and regular to look like the sea.
+ * The half-integer harmonic makes the combined curve repeat exactly every two
+ * swell wavelengths, and that periodicity is what the renderer exploits: each
+ * layer is rasterized <em>once</em> -- antialiasing and mood tint baked in --
+ * into a two-wavelength tile covering only the band the layer is actually
+ * visible in, and every animation frame merely blits the tiles at a scrolling
+ * offset over a cached sky gradient. Under CheerpJ every paint is software
+ * rasterization on the browser's only thread, so frames must be image copies,
+ * not geometry; on ticks the panel also dirties only the water band, sparing
+ * the (expensive) HTML menu labels floating above the sky from recompositing.
  * <p>
  * The panel is also <em>mood-aware</em>, so one component serves the menus and
  * both endings of a game:
@@ -65,9 +73,13 @@ public class ChoppySeasPanel extends JPanel
   }
 
   /**
-   * Target redraw rate. 60 ticks/second is smooth and cheap for flat fills.
+   * Target redraw rate. The waves are pre-rendered and merely translated
+   * each tick, so the rate is set by how smooth slow scrolling needs to
+   * look -- not by how fast geometry can be filled. 20 ticks/second moves
+   * the nearest layer a couple of pixels per frame and leaves the browser
+   * thread (CheerpJ) almost entirely to input handling.
    */
-  private static final int REFRESH_HZ = 60;
+  private static final int REFRESH_HZ = 20;
 
   /**
    * Milliseconds in a second, for converting the refresh rate to a Timer delay.
@@ -79,6 +91,33 @@ public class ChoppySeasPanel extends JPanel
    * is smoother but costs more points per polygon; 6px is imperceptibly jagged.
    */
   private static final int SAMPLE_STEP_PX = 6;
+
+  /**
+   * The ripple's frequency as a multiple of the swell's. A half-integer, so
+   * the combined waveform closes exactly after two swell wavelengths -- the
+   * property that lets a finite tile capture it. (A free-running multiplier
+   * like 2.3 only repeats every ten wavelengths.)
+   */
+  private static final float RIPPLE_HARMONIC = 2.5f;
+
+  /**
+   * How many swell wavelengths one baked tile spans. Two, so neighbouring
+   * crests differ and the repetition across the screen stays subtle.
+   */
+  private static final int TILE_PERIODS = 2;
+
+  /**
+   * How far the surface can swing from its baseline, in amplitudes: the
+   * full-strength swell plus the half-strength ripple.
+   */
+  private static final float MAX_SWING = 1.5f;
+
+  /**
+   * Vertical safety margin, in pixels, around each baked band so an
+   * antialiased crest is never clipped by its tile edge.
+   */
+  private static final int BAND_MARGIN = 2;
+
 
   /**
    * Colour at the very top of the normal sky gradient (deep twilight).
@@ -183,6 +222,22 @@ public class ChoppySeasPanel extends JPanel
    * The featured civilization's flag, or null when the mood shows no flag.
    */
   private ImageIcon flag;
+
+  /**
+   * The baked rendering, rebuilt lazily whenever the panel size or mood it
+   * was baked for goes stale: one band-clipped, seamlessly tiling image per
+   * wave layer (with its destination y and swell wavelength in pixels), and
+   * the sky gradient at full panel size. The sky spends memory to buy the
+   * unscaled-copy fast path -- a stretched strip costs a scaled blit on
+   * every single frame.
+   */
+  private BufferedImage[] tiles;
+  private int[] tileTops;
+  private int[] tileLambdas;
+  private BufferedImage sky;
+  private int bakedW = -1;
+  private int bakedH = -1;
+  private SeaMood bakedMood;
 
   /**
    * Constructs the panel in the NORMAL mood. The animation runs whenever the
@@ -294,18 +349,29 @@ public class ChoppySeasPanel extends JPanel
    * Timer callback: advance the shared clock by the real tick interval and ask
    * Swing to repaint. Using the timer's own delay (rather than assuming a fixed
    * step) keeps motion consistent even if the timer fires late.
+   * <p>
+   * Only the water band is dirtied when nothing above it moves, so the sky --
+   * and any menu labels floating over it -- never recomposite on a tick. The
+   * defeat mood animates its sky (drifting clouds, flickering flames on the
+   * flag), so it alone pays for the full window.
    *
    * @param e the timer event (unused beyond identifying the tick)
    */
   private void onTick( ActionEvent e )
   {
     elapsedSeconds += (float) redrawTimer.getDelay() / MS_PER_SEC;
-    repaint();
+
+    if ( mood == SeaMood.DEFEAT || tileTops == null )
+      repaint();
+    else
+      repaint( 0, tileTops[0], getWidth(), getHeight() - tileTops[0] );
   }
 
   /**
    * Paints the scene back to front: sky, then the mood's set dressing (storm
-   * clouds, wreath, flag, flames), then every wave layer.
+   * clouds, wreath, flag, flames), then every wave layer. The sky and waves
+   * are nothing but cached-image blits; the only geometry rasterized here is
+   * the mood dressing, which the menus (NORMAL mood) never have.
    *
    * @param g the Graphics context supplied by Swing
    */
@@ -314,17 +380,21 @@ public class ChoppySeasPanel extends JPanel
   {
     super.paintComponent( g );
 
+    int w = getWidth();
+    int h = getHeight();
+    if ( w <= 0 || h <= 0 )
+      return;
+
+    ensureBaked( w, h );
+
     // work on a private copy so our hint/colour changes never leak out
     Graphics2D g2 = (Graphics2D) g.create();
     g2.setRenderingHint( RenderingHints.KEY_ANTIALIASING,
                          RenderingHints.VALUE_ANTIALIAS_ON );
 
-    int w = getWidth();
-    int h = getHeight();
-
-    // sky behind everything: vertical gradient from zenith to horizon
-    g2.setPaint( new GradientPaint( 0, 0, skyTop(), 0, h, skyHorizon() ) );
-    g2.fillRect( 0, 0, w, h );
+    // sky behind everything: an unscaled copy of the baked gradient; the
+    // clip keeps the actual work down to whatever region is dirty
+    g2.drawImage( sky, 0, 0, null );
 
     if ( mood == SeaMood.DEFEAT )
       paintStormClouds( g2, w );
@@ -335,9 +405,10 @@ public class ChoppySeasPanel extends JPanel
     if ( flag != null && mood == SeaMood.DEFEAT )
       paintFlag( g2, w, h );
 
-    // back-to-front: each nearer layer paints over the ones behind it
-    for ( WaveLayer layer : layers )
-      paintWaveLayer( g2, layer, w, h );
+    // back-to-front: each nearer layer's tile row paints over the ones
+    // behind it, shifted by its own scrolling phase
+    for ( int i = 0; i < layers.length; i++ )
+      paintWaveTiles( g2, i, w );
 
     if ( flag != null && mood == SeaMood.VICTORY )
       paintFlag( g2, w, h );
@@ -346,41 +417,139 @@ public class ChoppySeasPanel extends JPanel
   }
 
   /**
-   * Fills a single wave layer as a closed polygon: the choppy surface curve
-   * across the top, then straight down to the panel's bottom corners.
+   * Blits one layer's baked tile across the panel at its current scroll
+   * offset. The offset is the layer's analytic phase converted to pixels
+   * (one wavelength per 2*pi), so motion is identical to the old per-frame
+   * geometry -- the surface just translates instead of being refilled.
    *
-   * @param g2    the (configured) graphics context
-   * @param layer the layer to draw
-   * @param w     the current panel width in pixels
-   * @param h     the current panel height in pixels
+   * @param g2 the graphics context
+   * @param i  the layer index
+   * @param w  the current panel width in pixels
    */
-  private void paintWaveLayer( Graphics2D g2, WaveLayer layer, int w, int h )
+  private void paintWaveTiles( Graphics2D g2, int i, int w )
   {
-    float baseY = layer.baseFraction * h;             // resting waterline
+    BufferedImage tile = tiles[i];
+    int period = tile.getWidth();
+    float phase = layers[i].speed * speedScale() * elapsedSeconds;
+    int offset = Math.floorMod(
+        Math.round( phase / (float) ( 2 * Math.PI ) * tileLambdas[i] ), period );
+
+    for ( int x = -offset; x < w; x += period )
+      g2.drawImage( tile, x, tileTops[i], null );
+  }
+
+  /**
+   * Rebuilds the cached sky strip and wave tiles if the panel size or mood
+   * has changed since they were last baked. A no-op on every other call,
+   * which is what makes it safe to run at the top of each paint.
+   *
+   * @param w the current panel width in pixels
+   * @param h the current panel height in pixels
+   */
+  private void ensureBaked( int w, int h )
+  {
+    if ( w == bakedW && h == bakedH && mood == bakedMood )
+      return;
+
+    sky = new BufferedImage( w, h, BufferedImage.TYPE_INT_RGB );
+    Graphics2D sg = sky.createGraphics();
+    sg.setPaint( new GradientPaint( 0, 0, skyTop(), 0, h, skyHorizon() ) );
+    sg.fillRect( 0, 0, w, h );
+    sg.dispose();
+
+    tiles = new BufferedImage[ layers.length ];
+    tileTops = new int[ layers.length ];
+    tileLambdas = new int[ layers.length ];
+
+    for ( int i = 0; i < layers.length; i++ )
+      bakeLayerTile( i, w, h );
+
+    bakedW = w;
+    bakedH = h;
+    bakedMood = mood;
+  }
+
+  /**
+   * Rasterizes one layer's surface -- antialiased, mood-tinted -- into a
+   * seamlessly tiling image spanning {@link #TILE_PERIODS} swell
+   * wavelengths. The tile is clipped to the band the layer is actually
+   * visible in: from its own highest possible crest down to the deepest
+   * trough of the next layer (which opaquely covers everything below), or
+   * the panel's bottom for the nearest layer. The polygon is sampled one
+   * step past both vertical edges so antialiasing never thins them into
+   * visible seams.
+   *
+   * @param i the layer index
+   * @param w the current panel width in pixels
+   * @param h the current panel height in pixels
+   */
+  private void bakeLayerTile( int i, int w, int h )
+  {
+    WaveLayer layer = layers[i];
+    float baseY = layer.baseFraction * h;               // resting waterline
     float amp   = layer.amplitudeFrac * h * ampScale(); // crest/trough swing
-    // angular wavenumber k = 2*pi / wavelength; convert the fractional
-    // wavelength into pixels first so the look scales with window width
-    float k     = (float) ( 2 * Math.PI ) / ( layer.wavelengthFrac * w );
-    float phase = layer.speed * speedScale() * elapsedSeconds;
+
+    // round the wavelength to a whole multiple of the sample step -- not
+    // just whole pixels -- and derive the wavenumber from the rounded span.
+    // The curve then closes exactly at the tile edge AND its sample grid
+    // realigns across the wrap; with a stray remainder, the chords on
+    // either side of the seam interpolate different sample pairs and the
+    // surface jogs a pixel or two at every tile boundary.
+    int lambda = Math.max( SAMPLE_STEP_PX * 4,
+        Math.round( layer.wavelengthFrac * w / (float) SAMPLE_STEP_PX )
+            * SAMPLE_STEP_PX );
+    int period = TILE_PERIODS * lambda;
+    float k = (float) ( 2 * Math.PI ) / lambda;
+
+    int top = (int) Math.floor( baseY - amp * MAX_SWING ) - BAND_MARGIN;
+    int bottom = ( i + 1 < layers.length ) ? troughBottom( i + 1, h ) : h;
+    bottom = Math.min( Math.max( bottom, top + 1 ), h );
+
+    BufferedImage tile = new BufferedImage( period, bottom - top,
+                                            BufferedImage.TYPE_INT_ARGB );
+    Graphics2D tg = tile.createGraphics();
+    tg.setRenderingHint( RenderingHints.KEY_ANTIALIASING,
+                         RenderingHints.VALUE_ANTIALIAS_ON );
+    tg.setColor( moodTint( layer.color ) );
+
+    // the ripple's relative phase is frozen into the bake (each layer gets
+    // its own, so no two layers share a crest pattern); at menu scroll
+    // speeds a translating chop is indistinguishable from a morphing one
+    float ripplePhase = i * 1.3f;
 
     Polygon poly = new Polygon();
-
-    // sample the surface left to right
-    for ( int x = 0; x <= w + SAMPLE_STEP_PX; x += SAMPLE_STEP_PX )
+    for ( int x = -SAMPLE_STEP_PX; x <= period + SAMPLE_STEP_PX;
+          x += SAMPLE_STEP_PX )
     {
-      // primary swell plus a faster, counter-moving ripple => choppy crests
-      double swell  = waveShape( k * x + phase );
-      double ripple = 0.5 * waveShape( 2.3 * k * x - 1.7 * phase );
-      int y = (int) ( baseY - amp * ( swell + ripple ) );
-      poly.addPoint( x, y );
+      double swell  = waveShape( k * x );
+      double ripple = 0.5 * waveShape( RIPPLE_HARMONIC * k * x + ripplePhase );
+      poly.addPoint( x, (int) ( baseY - amp * ( swell + ripple ) ) - top );
     }
+    poly.addPoint( period + SAMPLE_STEP_PX, tile.getHeight() );
+    poly.addPoint( -SAMPLE_STEP_PX, tile.getHeight() );
+    tg.fillPolygon( poly );
+    tg.dispose();
 
-    // close the polygon down the right edge, along the bottom, up the left edge
-    poly.addPoint( w + SAMPLE_STEP_PX, h );
-    poly.addPoint( 0, h );
+    tiles[i] = tile;
+    tileTops[i] = top;
+    tileLambdas[i] = lambda;
+  }
 
-    g2.setColor( moodTint( layer.color ) );
-    g2.fillPolygon( poly );
+  /**
+   * The lowest pixel a layer's surface can reach: its waterline plus the
+   * full downward swing, padded by the band margin. Everything below this
+   * line is guaranteed opaque water, so the layer behind may stop there.
+   *
+   * @param i the layer index
+   * @param h the current panel height in pixels
+   * @return the deepest possible trough, in panel coordinates
+   */
+  private int troughBottom( int i, int h )
+  {
+    WaveLayer layer = layers[i];
+    float amp = layer.amplitudeFrac * h * ampScale();
+    return (int) Math.ceil( layer.baseFraction * h + amp * MAX_SWING )
+         + BAND_MARGIN;
   }
 
   /**
