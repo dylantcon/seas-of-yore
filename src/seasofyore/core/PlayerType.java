@@ -43,7 +43,7 @@ public enum PlayerType
   AI_EXTREME( "Extreme AI", "The Drowned King",
     "A legend, say one; a yarn, say another. Some tales be bilge; not this'n. "
     + "Heed my warning: A spectre be in these waters, under countless fathoms o' "
-    + "the murky brine. It knowst where thy keels rest afore thou dost. No chart "
+    + "murky brine. It knowst where thy keels rest afore thou dost. No chart "
     + "explain'd it, nor fleet, outlasted it. Face the Drowned King, an' yer "
     + "name joins the myths at the bottom o' the sea.", AIDifficulty.EXTREME ),
 

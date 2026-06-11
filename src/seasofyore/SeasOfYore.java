@@ -304,13 +304,13 @@ public class SeasOfYore
 
         // the commander's tale: lore for whichever commander was last chosen
         commanderLoreLabel = new JLabel();
-        commanderLoreLabel.setFont(new Font("Serif", Font.ITALIC, 14));
+        commanderLoreLabel.setFont(new Font("Serif", Font.ITALIC, 13));
         commanderLoreLabel.setForeground(INK);
         commanderLoreLabel.setBackground(PARCHMENT);
         commanderLoreLabel.setOpaque(true);
         commanderLoreLabel.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLineBorder(WOOD_EDGE, 2),
-            BorderFactory.createEmptyBorder(8, 12, 8, 12)));
+            BorderFactory.createEmptyBorder(6, 10, 6, 10)));
 
         britonsSelector.addActionListener(e ->
         {
@@ -477,7 +477,8 @@ public class SeasOfYore
     {
         if (type == null)
             return;
-        commanderLoreLabel.setText("<html><div style='width:360px'><tt><b>"
+        commanderLoreLabel.setText("<html><div style='width: 360px; line-height:"
+            + " 1.0;'><tt><b>"
             + "<span style='color: #dd0000;'>Captain's Log: </span></b><i>"
             + "<span style='font-weight: 900; color: #332421;'>"
             + type.getNickname() + "</span></i><br>" + type.getLore()
