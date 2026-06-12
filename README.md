@@ -8,11 +8,11 @@ Seas of Yore is a Java-based battleship-inspired game, which honors the original
 #### Title Screen
 ![title](https://javalab.dconn.dev/apps/seas-of-yore/thumbnail.png)
 #### Local Setup
-![singleplayer](https://drive.google.com/file/d/1qrcH9WTCUXnkOpc0s_H0iPcunVoKeSCS/view?usp=drive_link)
+![singleplayer](https://external-content.duckduckgo.com/iu/?u=http%3A%2F%2Fdrive.google.com/uc?id=1qrcH9WTCUXnkOpc0s_H0iPcunVoKeSCS)
 #### Online Setup
-![multiplayer](https://drive.google.com/file/d/1Qzpp5cVydsl1Vgj8LAAkouK2w9NCC4db/view?usp=drive_link)
+![multiplayer](https://external-content.duckduckgo.com/iu/?u=http%3A%2F%2Fdrive.google.com/uc?id=1Qzpp5cVydsl1Vgj8LAAkouK2w9NCC4db)
 #### In-Game
-![battle](https://drive.google.com/file/d/1J4gGdo1Nu7ZtW9UInjv0hA-QyaKl8r4J/view?usp=drive_link)
+![battle](https://external-content.duckduckgo.com/iu/?u=http%3A%2F%2Fdrive.google.com/uc?id=1J4gGdo1Nu7ZtW9UInjv0hA-QyaKl8r4J)
 
 ## Current Features
 **Intelligent Computer Players**: Each of the AI players will select locations on the board based on a heat-map matrix, that is a reference to the opposing player's board, sans their ships. Easier difficulties will deviate slightly from the heatmap's suggestions, and harder ones will rely on it entirely. When an AI player takes a turn, the shot fired will contribute to a floating point confidence factor, with misses decreasing confidence in the surrounding area, and hits increasing it. The confidence factor increments surrounding cells in the northward, eastward, westward, and southward directions, extending relative to the ceiling of the average length of the enemy's remaining ships. Additionally, if a shot is taken near the edge resulting in a hit, and the projection of the confidence factor would extend outside of the board, the valid cells will receive additional increments to confidence relative to the number of projected 'confidence cells' that transcended the limits of the board. The heat-map will feature a decay-factor, with older information losing relevance as the game progresses. If there is insufficient data on the heat-map, the AI players will default to a safe pattern of checking cells until there IS sufficient heat-map data.
