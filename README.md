@@ -1,8 +1,8 @@
 # seas-of-yore
 A medieval 'Battleship' inspired board game, with new features and game modes. Custom-drawn sprites and an engaging user interface enhance the core gameplay features.
 
-## Overview (May Describe Some Stretch Goals for v1.0)
-Seas of Yore is a Java-based battleship-inspired game, which honors the original rules of Battleship, while also building on the original features of the game. This project is complete with medieval style sprites, UI, a thematic soundtrack, and interactive sound effects as the game is played. It can be played singleplayer against four different AI difficulties, or as a multiplayer game, with a human player versus a human player. There also will be save-game functionality, so if you want to come back to a game later, you absolutely can. This game is built entirely in Java, and relies only on core JDK features and a few image sprites and sound files. These are all packed into the `SeasOfYore.jar` file that is enclosed in this repository. So, my hope is that if you have the JRE installed, you should be able to just double-click `SeasOfYore.jar` and it will boot up.
+## Overview
+Seas of Yore is a Java-based battleship-inspired game, which honors the original rules of Battleship, while also building on the original features of the game. This project is complete with medieval style sprites, UI, a thematic soundtrack, and interactive sound effects as the game is played. It can be played singleplayer against four different AI difficulties, or as a multiplayer game, with a human player versus a human player. There is save-game functionality, so if you want to come back to a game later, you absolutely can. This game is built entirely in Java, and relies only on core JDK features and a few image sprites. These are all packed into the `SeasOfYore.jar` file that is enclosed in this repository. So, my hope is that if you have the JRE installed, you should be able to just double-click `SeasOfYore.jar` and it will boot up. May integrate music into the game later on.
 
 ### Images
 #### Title Screen
@@ -26,7 +26,7 @@ Seas of Yore is a Java-based battleship-inspired game, which honors the original
 **Networked Multiplayer**: Supports LAN games between two Seas of Yore clients and online games via a simple relay server hosted specifically for this app. Can host and join via room codes or directly via IPv4 address and port. Both Classic and SALVO modes work.
 
 ## Planned Features
-**New Optional Gameplay Mode**: A new added gameplay mode, `Royal Skirmish`, which users may select upon opening the initial game menu. It adds some fun and exciting new features that aim to spice up the core gameplay, while also staying true to the foundation of the original game itself. See the devoted section in this README to learn more about it.
+**New Optional Gameplay Mode**: A new added gameplay mode, `Royal Skirmish`, which users may select upon opening the initial game menu. It adds some fun and exciting new features that aim to spice up the core gameplay, while also staying true to the foundation of the original game itself. See the devoted section in this README to learn more about it. This may take a while to implement due to the complexity associated with properly integrating specialty ammunition into the targeting logic of the four AI player types. If there are $N$ special projectiles and $M$ computer player types, then $N \times M$ targeting algorithms are needed (fundamental counting principle).
 
 ### Royal Skirmish
 **Description**: In this new mode, during gameplay, each player accrues `Gold`, either at the end of their turn, or upon successfully hitting a ship. `Gold` may be spent on `Special Ammunition`, each of which has a unique effect on the opposing player's board. There are some examples of potential special ammunition types in the subsection below.
